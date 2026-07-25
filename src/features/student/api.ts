@@ -1,0 +1,253 @@
+import { api } from "@/api/http";
+import type {
+  AdminStudentRead,
+  BookingStatus,
+  ClassSessionStatus,
+  PageResponse,
+  StudentProgramType,
+  UserRead,
+} from "@/features/admin/api";
+
+export type StudentRead = AdminStudentRead;
+
+export type StudentBookingSession = {
+  id: string;
+  teacher_id: string | null;
+  batch_group_id: string | null;
+  batch_schedule_day_id: string | null;
+  program_type: StudentProgramType;
+  batch_slot: string | null;
+  display_label: string | null;
+  starts_at: string;
+  ends_at: string;
+  status: ClassSessionStatus;
+  capacity: number;
+  created_at: string;
+  updated_at: string;
+  teacher?: { id: string; display_name: string; bio?: string } | null;
+  batch_group?: { id: string; name: string } | null;
+};
+
+export type StudentBookingRead = {
+  id: string;
+  student_id: string;
+  class_session_id: string;
+  status: BookingStatus;
+  booked_at: string;
+  created_at: string;
+  updated_at: string;
+  class_session: StudentBookingSession;
+  student?: {
+    id: string;
+    program_type: StudentProgramType;
+    user: UserRead;
+  };
+};
+
+export type StudentAccessGrantRead = {
+  id: string;
+  student_id: string;
+  package_id: string | null;
+  grant_type: string;
+  duration_days: number;
+  access_starts_at: string;
+  access_ends_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type BatchScheduleOption = {
+  id: string;
+  display_label: string | null;
+  batch_slot: string | null;
+  starts_at: string;
+  ends_at: string;
+  capacity: number;
+  booked_count: number;
+  teacher?: { id: string; display_name: string } | null;
+  is_selected?: boolean;
+};
+
+export type BatchScheduleDayRead = {
+  id: string;
+  batch_group_id: string;
+  schedule_date: string;
+  options: BatchScheduleOption[];
+  selected_class_session_id: string | null;
+};
+
+export type StudentTeacherSlotRead = {
+  id: string;
+  teacher_id: string;
+  starts_at: string;
+  ends_at: string;
+  status: "available" | "booked" | "cancelled" | "blocked";
+  teacher?: {
+    id: string;
+    display_name: string;
+    user?: UserRead;
+  };
+};
+
+export type StudentFeedbackNoteRead = {
+  id: string;
+  booking_id: string;
+  class_session_id: string;
+  student_id: string;
+  teacher_id: string;
+  note: string;
+  visibility: "student_visible" | "admin_only";
+  created_at: string;
+  updated_at: string;
+  teacher?: { id: string; display_name: string };
+  class_session?: StudentBookingSession;
+};
+
+// Student List & Active Profile
+export async function listStudents(): Promise<PageResponse<StudentRead>> {
+  const response = await api.get<PageResponse<StudentRead>>("/admin/students", {
+    params: { page_size: 100 },
+  });
+  return response.data;
+}
+
+export async function getStudentDetail(studentId: string): Promise<StudentRead> {
+  const response = await api.get<StudentRead>(`/admin/students/${studentId}`);
+  return response.data;
+}
+
+// Student Bookings
+export async function listStudentBookings(params: {
+  studentId: string;
+  status?: string;
+  startsFrom?: string;
+  startsTo?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponse<StudentBookingRead>> {
+  const response = await api.get<PageResponse<any>>("/admin/bookings", {
+    params: {
+      student_id: params.studentId,
+      status: params.status !== "all" ? params.status : undefined,
+      starts_from: params.startsFrom,
+      starts_to: params.startsTo,
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 50,
+    },
+  });
+
+  const bookings = response.data.items;
+  const classSessionIds = Array.from(new Set(bookings.map((b: any) => b.class_session_id)));
+  
+  const classSessions = await Promise.all(
+    classSessionIds.map(id => api.get(`/admin/classes/${id}`).then(res => res.data).catch(() => null))
+  );
+  
+  const classSessionMap = new Map(classSessions.filter(Boolean).map((c: any) => [c.id, c]));
+  
+  const enrichedBookings = bookings.map((b: any) => ({
+    ...b,
+    class_session: classSessionMap.get(b.class_session_id) || undefined
+  }));
+
+  return {
+    ...response.data,
+    items: enrichedBookings
+  };
+}
+
+// Access Grants
+export async function listStudentAccessGrants(studentId: string): Promise<PageResponse<StudentAccessGrantRead>> {
+  const response = await api.get<PageResponse<StudentAccessGrantRead>>(
+    `/admin/students/${studentId}/access-grants`,
+    { params: { page_size: 50 } },
+  );
+  return response.data;
+}
+
+// 1-on-1 Class Scheduling
+export async function listAvailableTeacherSlots(params: {
+  teacherId?: string;
+  startsFrom?: string;
+  startsTo?: string;
+}): Promise<PageResponse<StudentTeacherSlotRead>> {
+  const response = await api.get<PageResponse<StudentTeacherSlotRead>>("/admin/teacher-availability/slots", {
+    params: {
+      teacher_id: params.teacherId,
+      starts_from: params.startsFrom,
+      starts_to: params.startsTo,
+      status: "available",
+      page_size: 100,
+    },
+  });
+  return response.data;
+}
+
+export async function bookOneOnOneClass(payload: {
+  student_id: string;
+  teacher_availability_slot_id: string;
+}): Promise<StudentBookingRead> {
+  const response = await api.post<StudentBookingRead>("/bookings/one-on-one", payload);
+  return response.data;
+}
+
+// Batch Class Scheduling
+export async function listStudentBatchScheduleDays(studentId: string): Promise<BatchScheduleDayRead[]> {
+  const response = await api.get<BatchScheduleDayRead[]>(`/students/${studentId}/batch-schedule-days`);
+  return response.data;
+}
+
+export async function selectBatchScheduleDayOption(
+  studentId: string,
+  dayId: string,
+  classSessionId: string | null,
+): Promise<void> {
+  await api.put(`/students/${studentId}/batch-schedule-days/${dayId}/selection`, {
+    class_session_id: classSessionId,
+  });
+}
+
+// Cancellation & Reschedule
+export async function cancelStudentBooking(bookingId: string, reason?: string): Promise<void> {
+  await api.post(`/bookings/${bookingId}/cancel`, { reason });
+}
+
+export async function rescheduleStudentBookingOneOnOne(
+  bookingId: string,
+  teacherAvailabilitySlotId: string,
+): Promise<StudentBookingRead> {
+  const response = await api.post<StudentBookingRead>(`/bookings/${bookingId}/reschedule/one-on-one`, {
+    teacher_availability_slot_id: teacherAvailabilitySlotId,
+  });
+  return response.data;
+}
+
+export async function rescheduleStudentBookingBatch(
+  bookingId: string,
+  classSessionId: string,
+): Promise<StudentBookingRead> {
+  const response = await api.post<StudentBookingRead>(`/bookings/${bookingId}/reschedule/batch`, {
+    class_session_id: classSessionId,
+  });
+  return response.data;
+}
+
+// Feedback Notes
+export async function listStudentFeedbacks(studentId: string): Promise<StudentFeedbackNoteRead[]> {
+  // Fetch student's bookings first to collect notes
+  const bookingsResponse = await listStudentBookings({ studentId, pageSize: 100 });
+  const notes: StudentFeedbackNoteRead[] = [];
+
+  for (const booking of bookingsResponse.items) {
+    try {
+      const notesRes = await api.get<PageResponse<StudentFeedbackNoteRead>>(`/admin/bookings/${booking.id}/notes`);
+      const visibleNotes = (notesRes.data.items || []).filter((n) => n.visibility === "student_visible");
+      notes.push(...visibleNotes);
+    } catch {
+      // Ignore if notes endpoint yields 404 or empty
+    }
+  }
+
+  // Sort notes newest first
+  return notes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}

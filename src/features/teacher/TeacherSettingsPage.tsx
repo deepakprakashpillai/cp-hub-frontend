@@ -2,9 +2,12 @@ import { useThemeStore } from "@/app/theme-store";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
 import { Moon, Sun, ShieldAlert, UserCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { QuietLabel } from "@/components/ui/QuietLabel";
+import { cn } from "@/lib/utils";
 
 export function TeacherSettingsPage() {
-  const { theme, toggleTheme } = useThemeStore();
+  const { theme, setTheme } = useThemeStore();
   const { teachers, activeTeacher, activeTeacherId, setSelectedTeacherId } = useActiveTeacher();
 
   return (
@@ -19,25 +22,25 @@ export function TeacherSettingsPage() {
           <div className="space-y-2 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="font-medium text-muted">Display Name</p>
-                <p className="text-sm font-semibold text-primary">{activeTeacher.teacher.display_name}</p>
+                <QuietLabel>Display Name</QuietLabel>
+                <p className="text-sm font-semibold text-primary mt-0.5">{activeTeacher.teacher.display_name}</p>
               </div>
               <div>
-                <p className="font-medium text-muted">Linked Account Name</p>
-                <p className="text-sm font-semibold text-primary">{activeTeacher.user.full_name}</p>
+                <QuietLabel>Linked Account Name</QuietLabel>
+                <p className="text-sm font-semibold text-primary mt-0.5">{activeTeacher.user.full_name}</p>
               </div>
               <div>
-                <p className="font-medium text-muted">Email</p>
-                <p className="text-sm text-primary">{activeTeacher.user.email}</p>
+                <QuietLabel>Email</QuietLabel>
+                <p className="text-sm text-primary mt-0.5">{activeTeacher.user.email}</p>
               </div>
               <div>
-                <p className="font-medium text-muted">Phone</p>
-                <p className="text-sm text-primary">{activeTeacher.user.phone ?? "Not provided"}</p>
+                <QuietLabel>Phone</QuietLabel>
+                <p className="text-sm text-primary mt-0.5">{activeTeacher.user.phone ?? "Not provided"}</p>
               </div>
             </div>
             {activeTeacher.teacher.bio && (
               <div className="pt-2">
-                <p className="font-medium text-muted">Bio</p>
+                <QuietLabel>Bio</QuietLabel>
                 <p className="text-xs text-primary leading-relaxed mt-1">{activeTeacher.teacher.bio}</p>
               </div>
             )}
@@ -55,21 +58,33 @@ export function TeacherSettingsPage() {
             <p className="text-sm font-medium text-primary">Theme Mode</p>
             <p className="text-xs text-muted">Switch between light and dark visual themes across the application.</p>
           </div>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface-subtle px-3 text-xs font-medium text-primary transition hover:bg-border"
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="h-4 w-4 text-amber-400" /> Light Mode
-              </>
-            ) : (
-              <>
-                <Moon className="h-4 w-4 text-slate-700" /> Dark Mode
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={cn(
+                "inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-xs font-medium transition",
+                theme === "light"
+                  ? "border-brand bg-brand/5 text-brand ring-1 ring-brand/20 font-semibold"
+                  : "border-border bg-background text-primary hover:bg-surface-subtle"
+              )}
+            >
+              <Sun className="h-3.5 w-3.5" /> Light
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={cn(
+                "inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-xs font-medium transition",
+                theme === "dark"
+                  ? "border-brand bg-brand/5 text-brand ring-1 ring-brand/20 font-semibold"
+                  : "border-border bg-background text-primary hover:bg-surface-subtle"
+              )}
+            >
+              <Moon className="h-3.5 w-3.5" /> Dark
+            </button>
+          </div>
         </div>
       </div>
 
@@ -84,20 +99,19 @@ export function TeacherSettingsPage() {
         </p>
 
         <div className="space-y-2 pt-2">
-          <label className="text-xs font-medium text-primary flex items-center gap-1.5">
+          <label className="text-xs font-medium text-primary flex items-center gap-1.5 mb-1.5">
             <UserCheck className="h-3.5 w-3.5 text-brand" /> Active Teacher Context
           </label>
-          <select
+          <FilterSelect
             value={activeTeacherId ?? ""}
-            onChange={(e) => setSelectedTeacherId(e.target.value || null)}
-            className="w-full rounded-md border border-border bg-surface p-2.5 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-brand"
-          >
-            {teachers.map((t) => (
-              <option key={t.teacher.id} value={t.teacher.id}>
-                {t.teacher.display_name} ({t.user.full_name} - {t.user.email})
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedTeacherId(val || null)}
+            options={teachers.map(t => ({
+              value: t.teacher.id,
+              label: `${t.teacher.display_name} (${t.user.full_name} - ${t.user.email})`
+            }))}
+            includeAll={false}
+            className="w-full"
+          />
         </div>
       </div>
     </section>

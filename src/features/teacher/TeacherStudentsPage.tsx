@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UsersRound, GraduationCap, Layers, Mail, Phone } from "lucide-react";
+import { UsersRound, Layers, Mail, Phone } from "lucide-react";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
 import { DebouncedSearchInput } from "@/components/ui/DebouncedSearchInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -37,17 +37,19 @@ export function TeacherStudentsPage() {
       <PageHeader title="My Students" />
 
       {/* Tabs & Search */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border">
         <nav className="flex flex-wrap gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("one_on_one")}
             className={cn(
-              "relative h-9 px-2 text-xs font-medium transition",
-              activeTab === "one_on_one" ? "text-primary font-semibold" : "text-muted hover:text-primary"
+              "relative inline-flex items-center gap-2 h-9 px-2 text-xs font-medium transition whitespace-nowrap",
+              activeTab === "one_on_one"
+                ? "text-primary"
+                : "text-muted hover:text-primary",
             )}
           >
-            1-on-1 Assigned Students ({oneOnOneAssignments.length})
+            <span>1-on-1 Assigned Students ({oneOnOneAssignments.length})</span>
             {activeTab === "one_on_one" ? (
               <span className="absolute inset-x-2 bottom-[-1px] h-px bg-brand" />
             ) : null}
@@ -56,11 +58,13 @@ export function TeacherStudentsPage() {
             type="button"
             onClick={() => setActiveTab("batches")}
             className={cn(
-              "relative h-9 px-2 text-xs font-medium transition",
-              activeTab === "batches" ? "text-primary font-semibold" : "text-muted hover:text-primary"
+              "relative inline-flex items-center gap-2 h-9 px-2 text-xs font-medium transition whitespace-nowrap",
+              activeTab === "batches"
+                ? "text-primary"
+                : "text-muted hover:text-primary",
             )}
           >
-            Batch Roster
+            <span>Batch Roster</span>
             {activeTab === "batches" ? (
               <span className="absolute inset-x-2 bottom-[-1px] h-px bg-brand" />
             ) : null}

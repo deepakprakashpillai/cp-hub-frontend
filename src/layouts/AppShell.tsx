@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Menu,
+  MessageSquare,
   Settings,
   Sparkles,
   UsersRound,
@@ -44,6 +45,14 @@ const teacherLinks: RailLink[] = [
   { to: "/teacher/settings", label: "Settings", icon: Settings },
 ];
 
+const studentLinks: RailLink[] = [
+  { to: "/student", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/student/schedule", label: "Schedule a Class", icon: CalendarDays },
+  { to: "/student/classes", label: "My Classes", icon: Clock },
+  { to: "/student/feedbacks", label: "Feedbacks", icon: MessageSquare },
+  { to: "/student/settings", label: "Settings", icon: Settings },
+];
+
 const portalLinks: RailLink[] = [
   { to: "/admin", label: "Admin", icon: LayoutDashboard },
   { to: "/teacher", label: "Teacher", icon: UsersRound },
@@ -56,6 +65,7 @@ export function AppShell() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isAdminWorkspace = location.pathname.startsWith("/admin");
   const isTeacherWorkspace = location.pathname.startsWith("/teacher");
+  const isStudentWorkspace = location.pathname.startsWith("/student");
 
   let links = portalLinks;
   let workspaceLabel = "Development portals";
@@ -65,6 +75,9 @@ export function AppShell() {
   } else if (isTeacherWorkspace) {
     links = teacherLinks;
     workspaceLabel = "Teacher workspace";
+  } else if (isStudentWorkspace) {
+    links = studentLinks;
+    workspaceLabel = "Student workspace";
   }
 
   return (
@@ -80,7 +93,7 @@ export function AppShell() {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-none text-primary">CP Hub</p>
               <p className="mt-0.5 text-[11px] leading-none text-muted">
-                {isAdminWorkspace ? "Admin" : isTeacherWorkspace ? "Teacher" : "Portal"}
+                {isAdminWorkspace ? "Admin" : isTeacherWorkspace ? "Teacher" : isStudentWorkspace ? "Student" : "Portal"}
               </p>
             </div>
           </div>

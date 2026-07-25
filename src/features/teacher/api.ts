@@ -33,7 +33,7 @@ export type TeacherClassSession = {
   updated_at: string;
   teacher?: { id: string; display_name: string } | null;
   batch_group?: { id: string; name: string } | null;
-  primary_student?: { id: string; user: { full_name: string; email: string } } | null;
+  primary_student?: { id: string; user_id: string; full_name: string; email: string } | null;
   booking_status_counts?: { booked: number; attended: number; missed: number; cancelled: number };
 };
 
@@ -45,13 +45,9 @@ export type ClassRosterItem = {
   booked_at: string;
   student: {
     id: string;
-    program_type: StudentProgramType;
-    user: {
-      id: string;
-      full_name: string;
-      email: string;
-      phone: string | null;
-    };
+    full_name: string;
+    email: string;
+    phone: string | null;
   };
 };
 
@@ -93,14 +89,14 @@ export type TeacherAvailabilitySlotRead = {
 
 // Teacher list & profile
 export async function listTeachers(): Promise<PageResponse<TeacherRead>> {
-  const response = await api.get<PageResponse<TeacherRead>>("/api/v1/admin/teachers", {
+  const response = await api.get<PageResponse<TeacherRead>>("/admin/teachers", {
     params: { page_size: 100, is_active: true },
   });
   return response.data;
 }
 
 export async function getTeacher(teacherId: string): Promise<TeacherRead> {
-  const response = await api.get<TeacherRead>(`/api/v1/admin/teachers/${teacherId}`);
+  const response = await api.get<TeacherRead>(`/admin/teachers/${teacherId}`);
   return response.data;
 }
 
@@ -115,7 +111,7 @@ export async function listTeacherClasses(params: {
   startsTo?: string;
   sortOrder?: "asc" | "desc";
 }): Promise<PageResponse<TeacherClassSession>> {
-  const response = await api.get<PageResponse<TeacherClassSession>>("/api/v1/admin/classes", {
+  const response = await api.get<PageResponse<TeacherClassSession>>("/admin/classes", {
     params: {
       teacher_id: params.teacherId,
       page: params.page ?? 1,
@@ -130,8 +126,13 @@ export async function listTeacherClasses(params: {
   return response.data;
 }
 
+export async function getTeacherClassSession(classSessionId: string): Promise<TeacherClassSession> {
+  const response = await api.get<TeacherClassSession>(`/admin/classes/${classSessionId}`);
+  return response.data;
+}
+
 export async function getClassRoster(classSessionId: string): Promise<PageResponse<ClassRosterItem>> {
-  const response = await api.get<PageResponse<ClassRosterItem>>(`/api/v1/admin/classes/${classSessionId}/roster`, {
+  const response = await api.get<PageResponse<ClassRosterItem>>(`/admin/classes/${classSessionId}/roster`, {
     params: { page_size: 100 },
   });
   return response.data;
@@ -142,7 +143,7 @@ export async function markClassAttendance(
   classSessionId: string,
   attendances: Array<{ booking_id: string; status: "attended" | "missed"; reason?: string }>
 ): Promise<void> {
-  await api.post(`/api/v1/admin/classes/${classSessionId}/attendance`, { attendances });
+  await api.post(`/admin/classes/${classSessionId}/attendance`, { attendances });
 }
 
 export async function markBookingAttendance(
@@ -150,7 +151,7 @@ export async function markBookingAttendance(
   status: "attended" | "missed",
   reason?: string
 ): Promise<void> {
-  await api.post(`/api/v1/bookings/${bookingId}/attendance`, { status, reason });
+  await api.post(`/bookings/${bookingId}/attendance`, { status, reason });
 }
 
 // Booking Notes / Feedback
@@ -160,12 +161,12 @@ export async function createBookingNote(payload: {
   note: string;
   visibility?: BookingNoteVisibility;
 }): Promise<BookingNoteRead> {
-  const response = await api.post<BookingNoteRead>(`/api/v1/teacher/bookings/${payload.booking_id}/notes`, payload);
+  const response = await api.post<BookingNoteRead>(`/teacher/bookings/${payload.booking_id}/notes`, payload);
   return response.data;
 }
 
 export async function listBookingNotes(bookingId: string, teacherId: string): Promise<PageResponse<BookingNoteRead>> {
-  const response = await api.get<PageResponse<BookingNoteRead>>(`/api/v1/teacher/bookings/${bookingId}/notes`, {
+  const response = await api.get<PageResponse<BookingNoteRead>>(`/teacher/bookings/${bookingId}/notes`, {
     params: { teacher_id: teacherId },
   });
   return response.data;
@@ -173,7 +174,7 @@ export async function listBookingNotes(bookingId: string, teacherId: string): Pr
 
 // Availability Rules & Slots
 export async function listTeacherRules(teacherId: string): Promise<PageResponse<TeacherAvailabilityRuleRead>> {
-  const response = await api.get<PageResponse<TeacherAvailabilityRuleRead>>("/api/v1/admin/teacher-availability/rules", {
+  const response = await api.get<PageResponse<TeacherAvailabilityRuleRead>>("/admin/teacher-availability/rules", {
     params: { teacher_id: teacherId, page_size: 100 },
   });
   return response.data;
@@ -186,12 +187,12 @@ export async function createTeacherRule(payload: {
   end_time_utc: string;
   slot_duration_minutes: number;
 }): Promise<TeacherAvailabilityRuleRead> {
-  const response = await api.post<TeacherAvailabilityRuleRead>("/api/v1/admin/teacher-availability/rules", payload);
+  const response = await api.post<TeacherAvailabilityRuleRead>("/admin/teacher-availability/rules", payload);
   return response.data;
 }
 
 export async function deleteTeacherRule(ruleId: string): Promise<void> {
-  await api.delete(`/api/v1/admin/teacher-availability/rules/${ruleId}`);
+  await api.delete(`/admin/teacher-availability/rules/${ruleId}`);
 }
 
 export async function listTeacherSlots(params: {
@@ -199,7 +200,7 @@ export async function listTeacherSlots(params: {
   startsFrom?: string;
   startsTo?: string;
 }): Promise<PageResponse<TeacherAvailabilitySlotRead>> {
-  const response = await api.get<PageResponse<TeacherAvailabilitySlotRead>>("/api/v1/admin/teacher-availability/slots", {
+  const response = await api.get<PageResponse<TeacherAvailabilitySlotRead>>("/admin/teacher-availability/slots", {
     params: {
       teacher_id: params.teacherId,
       starts_from: params.startsFrom,
@@ -216,7 +217,7 @@ export async function blockTeacherTime(payload: {
   ends_at: string;
   reason?: string;
 }): Promise<TeacherAvailabilitySlotRead> {
-  const response = await api.post<TeacherAvailabilitySlotRead>("/api/v1/admin/teacher-availability/blocks", payload);
+  const response = await api.post<TeacherAvailabilitySlotRead>("/admin/teacher-availability/blocks", payload);
   return response.data;
 }
 
@@ -226,7 +227,7 @@ export async function generateTeacherSlots(teacherId: string, daysAhead = 14): P
   slots_cancelled: number;
   slots_skipped: number;
 }> {
-  const response = await api.post(`/api/v1/admin/teachers/${teacherId}/availability/generate`, null, {
+  const response = await api.post(`/admin/teachers/${teacherId}/availability/generate`, null, {
     params: { days_ahead: daysAhead },
   });
   return response.data;
