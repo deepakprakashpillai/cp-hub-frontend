@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarDays,
   CircleDollarSign,
+  Clock,
   GraduationCap,
   LayoutDashboard,
   Menu,
@@ -29,10 +30,18 @@ const adminLinks: RailLink[] = [
   { to: "/admin/students", label: "Students", icon: GraduationCap },
   { to: "/admin/teachers", label: "Teachers", icon: UsersRound },
   { to: "/admin/schedule", label: "Schedule", icon: CalendarDays },
-  { to: "/admin/programs", label: "Programs", icon: BarChart3 },
-  { to: "/admin/payments", label: "Payments", icon: CircleDollarSign },
+  { to: "/admin/programs", label: "Batches", icon: BarChart3 },
+  { to: "/admin/payments", label: "Finance", icon: CircleDollarSign },
   { to: "/admin/leads", label: "Leads", icon: Sparkles },
   { to: "/admin/settings", label: "Settings", icon: Settings },
+];
+
+const teacherLinks: RailLink[] = [
+  { to: "/teacher", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/teacher/classes", label: "Classes & Schedule", icon: CalendarDays },
+  { to: "/teacher/availability", label: "Availability", icon: Clock },
+  { to: "/teacher/students", label: "My Students", icon: UsersRound },
+  { to: "/teacher/settings", label: "Settings", icon: Settings },
 ];
 
 const portalLinks: RailLink[] = [
@@ -46,13 +55,23 @@ export function AppShell() {
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isAdminWorkspace = location.pathname.startsWith("/admin");
-  const links = isAdminWorkspace ? adminLinks : portalLinks;
+  const isTeacherWorkspace = location.pathname.startsWith("/teacher");
+
+  let links = portalLinks;
+  let workspaceLabel = "Development portals";
+  if (isAdminWorkspace) {
+    links = adminLinks;
+    workspaceLabel = "Admin workspace";
+  } else if (isTeacherWorkspace) {
+    links = teacherLinks;
+    workspaceLabel = "Teacher workspace";
+  }
 
   return (
     <div className="min-h-screen bg-background text-primary">
       <div className="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-surface px-4 py-4 lg:flex">
-          <WorkspaceRail isAdminWorkspace={isAdminWorkspace} links={links} />
+          <WorkspaceRail workspaceLabel={workspaceLabel} links={links} />
         </aside>
 
         <div className="sticky top-0 z-40 flex h-12 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
@@ -61,7 +80,7 @@ export function AppShell() {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-none text-primary">CP Hub</p>
               <p className="mt-0.5 text-[11px] leading-none text-muted">
-                {isAdminWorkspace ? "Admin" : "Portal"}
+                {isAdminWorkspace ? "Admin" : isTeacherWorkspace ? "Teacher" : "Portal"}
               </p>
             </div>
           </div>
@@ -89,9 +108,7 @@ export function AppShell() {
                   <img src={logoUrl} alt="CP Hub" className="h-8 w-8 object-contain" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-primary">CP Hub</p>
-                    <p className="text-xs text-muted">
-                      {isAdminWorkspace ? "Admin workspace" : "Development portals"}
-                    </p>
+                    <p className="text-xs text-muted">{workspaceLabel}</p>
                   </div>
                 </div>
                 <button
@@ -104,7 +121,7 @@ export function AppShell() {
                 </button>
               </div>
               <WorkspaceRail
-                isAdminWorkspace={isAdminWorkspace}
+                workspaceLabel={workspaceLabel}
                 links={links}
                 showHeader={false}
                 showFooter={false}
@@ -126,13 +143,13 @@ export function AppShell() {
 
 function WorkspaceRail({
   links,
-  isAdminWorkspace,
+  workspaceLabel,
   showHeader = true,
   showFooter = true,
   onNavigate,
 }: {
   links: RailLink[];
-  isAdminWorkspace: boolean;
+  workspaceLabel: string;
   showHeader?: boolean;
   showFooter?: boolean;
   onNavigate?: () => void;
@@ -144,9 +161,7 @@ function WorkspaceRail({
           <img src={logoUrl} alt="CP Hub" className="h-9 w-9 object-contain" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary">CP Hub</p>
-            <p className="text-xs text-muted">
-              {isAdminWorkspace ? "Admin workspace" : "Development portals"}
-            </p>
+            <p className="text-xs text-muted">{workspaceLabel}</p>
           </div>
         </div>
       ) : null}

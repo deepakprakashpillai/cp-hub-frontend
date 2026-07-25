@@ -9,7 +9,7 @@ type FilterSelectOption = {
 };
 
 type FilterSelectProps = {
-  label: string;
+  label?: string;
   value: string;
   options: FilterSelectOption[];
   onChange: (value: string) => void;
@@ -87,7 +87,7 @@ export function FilterSelect({
         disabled={disabled}
         onClick={() => setIsOpen((current) => !current)}
       >
-        <span className="text-[11px] font-medium text-muted">{label}</span>
+        {label ? <span className="text-[11px] font-medium text-muted">{label}</span> : null}
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
           {selectedOption.label}
         </span>

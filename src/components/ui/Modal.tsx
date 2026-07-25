@@ -10,7 +10,7 @@ type ModalProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 };
 
 export function Modal({ title, isOpen, onClose, children, footer, size = "sm" }: ModalProps) {
@@ -48,8 +48,8 @@ export function Modal({ title, isOpen, onClose, children, footer, size = "sm" }:
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          "relative w-full rounded-md border border-border bg-surface p-3 shadow-[0_18px_54px_rgba(15,23,42,0.16)]",
-          size === "sm" ? "max-w-[23rem]" : "max-w-[32rem]",
+          "relative flex max-h-[calc(100dvh-3rem)] w-full flex-col rounded-md border border-border bg-surface p-3 shadow-[0_18px_54px_rgba(15,23,42,0.16)]",
+          size === "sm" ? "max-w-[23rem]" : size === "md" ? "max-w-[32rem]" : "max-w-[62rem]",
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -65,7 +65,7 @@ export function Modal({ title, isOpen, onClose, children, footer, size = "sm" }:
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
-        <div className="pt-3">{children}</div>
+        <div className={cn("min-h-0 flex-1 pt-3", size === "lg" ? "overflow-y-auto pr-1" : "overflow-visible")}>{children}</div>
         {footer ? <div className="mt-3 flex items-center justify-end gap-1">{footer}</div> : null}
       </section>
     </div>,
