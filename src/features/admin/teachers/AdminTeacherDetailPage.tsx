@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
@@ -186,6 +186,11 @@ export function AdminTeacherDetailPage() {
         Teachers
       </Link>
       <TeacherHeader teacher={teacher} />
+      <TeacherAvailabilityFollowUp
+        rules={rulesQuery.data?.items ?? []}
+        slots={slotsQuery.data?.total ?? 0}
+        isLoading={rulesQuery.isLoading || slotsQuery.isLoading}
+      />
       <div className="-mt-2 grid gap-x-4 gap-y-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
         <main className="min-w-0 space-y-4">
           <nav className="flex flex-wrap gap-1 border-b border-border">
@@ -256,6 +261,37 @@ export function AdminTeacherDetailPage() {
           ) : null}
         </main>
         <TeacherSummary teacher={teacher} />
+      </div>
+    </section>
+  );
+}
+
+function TeacherAvailabilityFollowUp({
+  rules,
+  slots,
+  isLoading,
+}: {
+  rules: TeacherAvailabilityRuleRead[];
+  slots: number;
+  isLoading: boolean;
+}) {
+  if (isLoading || (rules.some((rule) => rule.is_active) && slots > 0)) return null;
+
+  const hasRules = rules.some((rule) => rule.is_active);
+  return (
+    <section className="flex min-w-0 items-center gap-2.5 rounded-md border border-warning/35 bg-warning/5 px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-primary">
+            {hasRules ? "No future availability" : "Availability is not configured"}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {hasRules
+              ? "This teacher has active weekly rules, but no open future slots to schedule."
+              : "Ask the teacher to add availability in the Teacher portal before assigning future sessions."}
+          </p>
+        </div>
       </div>
     </section>
   );

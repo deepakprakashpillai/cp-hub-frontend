@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -7,10 +8,11 @@ import {
   ArrowRight,
   Coffee,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
-import { listTeacherClasses, listTeacherRules } from "@/features/teacher/api";
+import { listTeacherClasses, listTeacherRules, listTeacherSlots } from "@/features/teacher/api";
 import { formatTime } from "@/features/admin/teachers/teacher-utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -22,6 +24,13 @@ export function TeacherDashboard() {
   const activeDrawerSessionId = searchParams.get("session");
 
   const { activeTeacher, activeTeacherId, isLoading: isTeacherLoading } = useActiveTeacher();
+
+  const availabilityWindow = useMemo(() => {
+    const startsFrom = new Date();
+    const endsAt = new Date(startsFrom);
+    endsAt.setDate(endsAt.getDate() + 14);
+    return { startsFrom: startsFrom.toISOString(), endsAt: endsAt.toISOString() };
+  }, []);
 
   // Get today start and end in UTC ISO format
   const today = new Date();
@@ -59,15 +68,32 @@ export function TeacherDashboard() {
     enabled: Boolean(activeTeacherId),
   });
 
+  // A rule alone does not make the teacher bookable; surface whether it has
+  // produced an open slot in the next two weeks.
+  const { data: availabilitySlotsData, isLoading: isAvailabilitySlotsLoading } = useQuery({
+    queryKey: ["teacher", activeTeacherId, "availability-slots", availabilityWindow],
+    queryFn: () =>
+      listTeacherSlots({
+        teacherId: activeTeacherId!,
+        startsFrom: availabilityWindow.startsFrom,
+        startsTo: availabilityWindow.endsAt,
+      }),
+    enabled: Boolean(activeTeacherId),
+  });
+
   const todayClasses = todayClassesData?.items ?? [];
   const rules = rulesData?.items ?? [];
+  const activeRules = rules.filter((rule) => rule.is_active);
   const upcomingClasses = upcomingClassesData?.items ?? [];
 
-  const weeklyHours = rules.reduce((acc, rule) => {
+  const weeklyHours = activeRules.reduce((acc, rule) => {
     const startHour = Number(rule.start_time_utc.split(":")[0]);
     const endHour = Number(rule.end_time_utc.split(":")[0]);
     return acc + Math.max(0, endHour - startHour);
   }, 0);
+  const upcomingOpenSlots = (availabilitySlotsData?.items ?? []).filter((slot) => slot.status === "available");
+  const hasAvailabilityRules = activeRules.length > 0;
+  const hasUpcomingOpenSlots = upcomingOpenSlots.length > 0;
 
   // Find next class for metric context (Item 41)
   const now = new Date();
@@ -91,7 +117,12 @@ export function TeacherDashboard() {
     setSearchParams(nextParams);
   }
 
-  const isMetricsLoading = isTeacherLoading || isTodayClassesLoading || isUpcomingLoading || isRulesLoading;
+  const isMetricsLoading =
+    isTeacherLoading ||
+    isTodayClassesLoading ||
+    isUpcomingLoading ||
+    isRulesLoading ||
+    isAvailabilitySlotsLoading;
 
   return (
     <section className="space-y-6">
@@ -118,6 +149,33 @@ export function TeacherDashboard() {
           </div>
         }
       />
+
+      {!isTeacherLoading && !isRulesLoading && !isAvailabilitySlotsLoading && (!hasAvailabilityRules || !hasUpcomingOpenSlots) && (
+        <section className="flex flex-col gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-primary">
+                {!hasAvailabilityRules ? "Set your weekly availability" : "No open slots in the next 14 days"}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">
+                {!hasAvailabilityRules
+                  ? "Add the hours you can teach so new sessions can be planned."
+                  : "Generate slots or adjust your weekly hours so students can book upcoming time."}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/teacher/availability"
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand px-3 text-xs font-medium text-white transition hover:opacity-90 cursor-pointer"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {!hasAvailabilityRules ? "Add weekly hours" : "Generate slots"}
+          </Link>
+        </section>
+      )}
 
       {/* Quick metrics grid with fixed min-height for layout shift prevention (Item 43) */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -178,7 +236,9 @@ export function TeacherDashboard() {
                   <Clock className="h-4 w-4" />
                 </span>
               </div>
-              <p className="mt-4 text-xs text-muted">{rules.length} active recurring rules</p>
+              <p className="mt-4 text-xs text-muted">
+                {activeRules.length} active rules · {upcomingOpenSlots.length} open slots ahead
+              </p>
             </article>
 
             {/* Metric 4: 1-on-1 Assignments */}
@@ -301,13 +361,13 @@ export function TeacherDashboard() {
             <div>
               <p className="text-sm font-medium text-primary">No classes scheduled for today</p>
               <p className="mt-1 text-xs text-muted">
-                {rules.length === 0
+                {activeRules.length === 0
                   ? "You haven't configured any recurring availability rules yet."
                   : "Check your upcoming schedule or adjust availability rules."}
               </p>
             </div>
             {/* Empty state CTA (Item 45) */}
-            {rules.length === 0 && (
+            {activeRules.length === 0 && (
               <div>
                 <Link
                   to="/teacher/availability"

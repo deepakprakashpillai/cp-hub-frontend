@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, ExternalLink, type LucideIcon, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, CalendarDays, ExternalLink, type LucideIcon, Pencil, Plus, ShieldAlert } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
@@ -320,6 +320,8 @@ export function AdminStudentDetailPage() {
         <>
           <StudentHeader student={studentQuery.data} />
 
+          {activeTab !== "access" && activeTab !== "payments" ? <StudentAccessFollowUp student={studentQuery.data} /> : null}
+
           <div className="-mt-2 grid gap-x-4 gap-y-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
             <main className="min-w-0 space-y-4">
               <nav className="flex flex-wrap gap-1 border-b border-border">
@@ -357,6 +359,29 @@ export function AdminStudentDetailPage() {
           </div>
         </>
       ) : null}
+    </section>
+  );
+}
+
+function StudentAccessFollowUp({ student }: { student: AdminStudentRead }) {
+  const access = getAccessFollowUp(student.student);
+  if (!access) return null;
+
+  return (
+    <section className="flex flex-col gap-3 rounded-md border border-warning/35 bg-warning/5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ShieldAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-primary">{access.title}</p>
+          <p className="mt-0.5 text-xs text-muted">{access.detail}</p>
+        </div>
+      </div>
+      <Link
+        to="?tab=access"
+        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-brand px-2.5 text-xs font-medium text-white transition hover:opacity-90"
+      >
+        {access.action}
+      </Link>
     </section>
   );
 }
@@ -671,6 +696,7 @@ function StudentPaymentsTab({ student }: { student: AdminStudentRead }) {
   );
   const packageMap = createPackageMap(packagesQuery.data?.items ?? []);
   const finance = createFinanceBriefing(payments);
+  const accessFollowUp = getAccessFollowUp(student.student);
   const paymentError = getMutationErrorMessage(savePaymentMutation.error);
   const deletePaymentError = getMutationErrorMessage(deletePaymentMutation.error);
 
@@ -718,6 +744,9 @@ function StudentPaymentsTab({ student }: { student: AdminStudentRead }) {
         ) : (
           <>
             <FinanceBriefingRow finance={finance} />
+            {payments.length > 0 && accessFollowUp ? (
+              <PaymentAccessFollowUp access={accessFollowUp} />
+            ) : null}
             {payments.length > 0 ? (
               <div className="divide-y divide-border rounded-md border border-border">
                 {payments.map((payment) => (
@@ -848,6 +877,34 @@ function StudentPaymentsTab({ student }: { student: AdminStudentRead }) {
         </div>
       </Modal>
     </DetailPanel>
+  );
+}
+
+function PaymentAccessFollowUp({
+  access,
+}: {
+  access: NonNullable<ReturnType<typeof getAccessFollowUp>>;
+}) {
+  return (
+    <section className="flex flex-col gap-3 rounded-md border border-warning/35 bg-warning/5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ShieldAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-primary">Payment recorded, access still needs attention</p>
+          <p className="mt-0.5 text-xs text-muted">
+            {access.title === "Access expired"
+              ? "This student has payment history, but their learning access has expired."
+              : "This student has payment history, but no learning access is assigned yet."}
+          </p>
+        </div>
+      </div>
+      <Link
+        to="?tab=access"
+        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-brand px-2.5 text-xs font-medium text-white transition hover:opacity-90"
+      >
+        {access.action}
+      </Link>
+    </section>
   );
 }
 
@@ -2544,6 +2601,29 @@ function getAccessSummary(student: AdminStudentRead["student"]) {
     label: `Valid till ${formatCompactDate(student.access_ends_at)}`,
     tone: "brand" as const,
   };
+}
+
+function getAccessFollowUp(student: AdminStudentRead["student"]) {
+  const startsAt = student.access_starts_at ? new Date(student.access_starts_at) : null;
+  const endsAt = student.access_ends_at ? new Date(student.access_ends_at) : null;
+
+  if (!startsAt || !endsAt) {
+    return {
+      title: "No access assigned",
+      detail: "This student cannot use their learning access yet.",
+      action: "Assign access",
+    };
+  }
+
+  if (new Date() >= endsAt) {
+    return {
+      title: "Access expired",
+      detail: `Expired ${formatCompactDate(student.access_ends_at)}. Add access to continue.`,
+      action: "Extend access",
+    };
+  }
+
+  return null;
 }
 
 function getAccessTiming(student: AdminStudentRead["student"]) {

@@ -26,6 +26,9 @@ pnpm-debug.log*
 *.swp
 *.swo
 
+# Local agent workspace and installed skills
+.agents/
+
 # Generated API artifacts can be regenerated from backend OpenAPI.
 src/api/generated/schema.ts
 

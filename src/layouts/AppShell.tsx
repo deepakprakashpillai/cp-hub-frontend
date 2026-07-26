@@ -66,6 +66,7 @@ export function AppShell() {
   const isAdminWorkspace = location.pathname.startsWith("/admin");
   const isTeacherWorkspace = location.pathname.startsWith("/teacher");
   const isStudentWorkspace = location.pathname.startsWith("/student");
+  const isStandaloneLeadsWorkspace = location.pathname.startsWith("/leads");
 
   let links = portalLinks;
   let workspaceLabel = "Development portals";
@@ -82,12 +83,15 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-background text-primary">
-      <div className="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-surface px-4 py-4 lg:flex">
-          <WorkspaceRail workspaceLabel={workspaceLabel} links={links} />
-        </aside>
+      <div className={cn("min-h-screen", !isStandaloneLeadsWorkspace && "lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]")}>
+        {!isStandaloneLeadsWorkspace ? (
+          <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-surface px-4 py-4 lg:flex">
+            <WorkspaceRail workspaceLabel={workspaceLabel} links={links} />
+          </aside>
+        ) : null}
 
-        <div className="sticky top-0 z-40 flex h-12 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
+        {!isStandaloneLeadsWorkspace ? (
+          <div className="sticky top-0 z-40 flex h-12 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
           <div className="flex min-w-0 items-center gap-2">
             <img src={logoUrl} alt="CP Hub" className="h-7 w-7 object-contain" />
             <div className="min-w-0">
@@ -105,9 +109,10 @@ export function AppShell() {
           >
             <Menu className="h-4 w-4" aria-hidden="true" />
           </button>
-        </div>
+          </div>
+        ) : null}
 
-        {isMobileNavOpen ? (
+        {!isStandaloneLeadsWorkspace && isMobileNavOpen ? (
           <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
@@ -145,7 +150,7 @@ export function AppShell() {
         ) : null}
 
         <main className="min-w-0 px-5 py-5 sm:px-8 lg:px-10 lg:py-6">
-          <div className="mx-auto max-w-7xl">
+          <div className={cn("mx-auto", isStandaloneLeadsWorkspace ? "max-w-6xl" : "max-w-7xl")}>
             <Outlet />
           </div>
         </main>

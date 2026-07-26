@@ -9,10 +9,12 @@ import { AdminSchedulePage } from "@/features/admin/AdminSchedulePage";
 import { AdminScheduleDetailPage } from "@/features/admin/AdminScheduleDetailPage";
 import { AdminBatchScheduleDayDetailPage } from "@/features/admin/AdminBatchScheduleDayDetailPage";
 import { AdminProgramsPage } from "@/features/admin/AdminProgramsPage";
+import { AdminFinancePage } from "@/features/admin/AdminFinancePage";
 import { AdminBatchDetailPage } from "@/features/admin/AdminBatchDetailPage";
 import { AdminTeacherDetailPage } from "@/features/admin/teachers/AdminTeacherDetailPage";
 import { AdminTeachersPage } from "@/features/admin/teachers/AdminTeachersPage";
 import { LeadManagementHome } from "@/features/leads/LeadManagementHome";
+import { LeadsWorkspace } from "@/features/leads/LeadsWorkspace";
 import { StudentDashboard } from "@/features/student/StudentDashboard";
 import { StudentSchedulePage } from "@/features/student/StudentSchedulePage";
 import { StudentClassesPage } from "@/features/student/StudentClassesPage";
@@ -41,8 +43,8 @@ export const router = createBrowserRouter([
       { path: "admin/schedule/:classSessionId", element: <AdminScheduleDetailPage /> },
       { path: "admin/programs", element: <AdminProgramsPage /> },
       { path: "admin/programs/batches/:batchGroupId", element: <AdminBatchDetailPage /> },
-      { path: "admin/payments", element: <AdminProgramsPage mode="finance" /> },
-      { path: "admin/leads", element: <AdminPlannedPage page="leads" /> },
+      { path: "admin/payments", element: <AdminFinancePage /> },
+      { path: "admin/leads", element: <LeadsWorkspace canConvert /> },
       { path: "admin/settings", element: <AdminPlannedPage page="settings" /> },
       { path: "teacher", element: <TeacherDashboard /> },
       { path: "teacher/classes", element: <TeacherClassesPage /> },

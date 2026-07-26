@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { CalendarOff, CalendarPlus, Plus, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarOff, CalendarPlus, Plus, SlidersHorizontal } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -18,6 +18,7 @@ import {
   getAdminBatchScheduleDefaults,
   listAdminBatchGroups,
   listAdminBatchScheduleDays,
+  listAdminClassSessions,
   listAdminTeachers,
   updateAdminBatchScheduleDefaults,
   type BatchDayOptionInput,
@@ -40,6 +41,17 @@ export function AdminSchedulePage() {
     queryKey: ["admin", "batch-schedule-days", page, range],
     queryFn: () => listAdminBatchScheduleDays({ ...window, page, pageSize: 25 }),
   });
+  const attendanceDue = useQuery({
+    queryKey: ["admin", "classes", "attendance-due"],
+    queryFn: () =>
+      listAdminClassSessions({
+        startsTo: new Date().toISOString(),
+        status: "scheduled",
+        sortOrder: "desc",
+        pageSize: 25,
+      }),
+  });
+  const dueSessions = attendanceDue.data?.items ?? [];
 
   const update = (values: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -121,6 +133,25 @@ export function AdminSchedulePage() {
           </div>
         }
       />
+
+      {dueSessions.length ? (
+        <section className="flex flex-col gap-3 rounded-md border border-warning/35 bg-warning/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-primary">
+                {dueSessions.length} {dueSessions.length === 1 ? "session needs" : "sessions need"} attendance
+              </p>
+              <p className="mt-0.5 truncate text-xs text-muted">
+                {dueSessions[0].batch_group?.name ?? dueSessions[0].primary_student?.full_name ?? "A completed session"} is ready to close out.
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={() => navigate(`/admin/schedule/${dueSessions[0].id}?tab=roster`)} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-warning px-2.5 text-xs font-medium text-white transition hover:opacity-90">
+            Review attendance <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterSelect

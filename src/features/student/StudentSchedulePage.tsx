@@ -29,7 +29,7 @@ export function StudentSchedulePage() {
   const isBatch = activeStudent?.student.program_type === "batch";
 
   const slotsQuery = useQuery({
-    queryKey: ["student-slots", activeStudent?.assigned_teacher?.id],
+    queryKey: ["student-slots", activeStudent?.assigned_teacher?.teacher.id],
     queryFn: () =>
       listAvailableTeacherSlots({
         teacherId: activeStudent?.student.assigned_teacher_id || undefined,
@@ -381,4 +381,3 @@ export function StudentSchedulePage() {
     </section>
   );
 }
-

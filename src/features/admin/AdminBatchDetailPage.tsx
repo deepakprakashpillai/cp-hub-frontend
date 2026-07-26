@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowUpRight, CalendarDays, Plus, X } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { DebouncedSearchInput } from "@/components/ui/DebouncedSearchInput";
@@ -51,7 +51,7 @@ export function AdminBatchDetailPage() {
   const days = useQuery({
     queryKey: ["admin", "batch-schedule-days", "batch", batchGroupId],
     queryFn: () => listAdminBatchScheduleDays({ batchGroupId, pageSize: 50 }),
-    enabled: Boolean(batchGroupId) && tab === "schedule",
+    enabled: Boolean(batchGroupId),
   });
 
   const refresh = () => {
@@ -119,6 +119,13 @@ export function AdminBatchDetailPage() {
           </button>
         ) : null}
       </header>
+
+      <BatchScheduleFollowUp
+        batch={data}
+        days={days.data?.items ?? []}
+        isLoading={days.isLoading}
+        onOpenSchedule={() => choose("schedule")}
+      />
 
       <div className="-mt-2 grid gap-x-4 gap-y-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
         <main className="min-w-0 space-y-4">
@@ -241,6 +248,41 @@ export function AdminBatchDetailPage() {
 
       {edit ? <EditBatch batch={data} onClose={() => setEdit(false)} onChanged={refresh} /> : null}
       {add ? <AddStudent batchId={data.id} onClose={() => setAdd(false)} onChanged={refresh} /> : null}
+    </section>
+  );
+}
+
+function BatchScheduleFollowUp({
+  batch,
+  days,
+  isLoading,
+  onOpenSchedule,
+}: {
+  batch: { upcoming_scheduled_count?: number | null };
+  days: Awaited<ReturnType<typeof listAdminBatchScheduleDays>>["items"];
+  isLoading: boolean;
+  onOpenSchedule: () => void;
+}) {
+  if (isLoading) return null;
+  const unassignedDay = days.find((day) => day.unassigned_students.length > 0);
+  const unassignedCount = days.reduce((count, day) => count + day.unassigned_students.length, 0);
+  const hasNoUpcomingDays = (batch.upcoming_scheduled_count ?? 0) === 0;
+  if (!hasNoUpcomingDays && !unassignedDay) return null;
+
+  return (
+    <section className="space-y-2 rounded-md border border-warning/35 bg-warning/5 px-3 py-2.5">
+      {hasNoUpcomingDays ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5"><CalendarDays className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" /><div><p className="text-xs font-semibold text-primary">No upcoming batch days</p><p className="mt-0.5 text-xs text-muted">Schedule the next learning sessions for this batch.</p></div></div>
+          <button type="button" onClick={onOpenSchedule} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand px-2.5 text-xs font-medium text-white transition hover:opacity-90">Open schedule <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
+        </div>
+      ) : null}
+      {unassignedDay ? (
+        <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", hasNoUpcomingDays && "border-t border-warning/30 pt-2")}>
+          <div className="flex min-w-0 items-center gap-2.5"><AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" /><div><p className="text-xs font-semibold text-primary">{unassignedCount} {unassignedCount === 1 ? "student needs" : "students need"} a session</p><p className="mt-0.5 text-xs text-muted">Assign students to a session option before the batch day starts.</p></div></div>
+          <Link to={`/admin/schedule/batch-days/${unassignedDay.id}`} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand px-2.5 text-xs font-medium text-white transition hover:opacity-90">Assign students <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></Link>
+        </div>
+      ) : null}
     </section>
   );
 }

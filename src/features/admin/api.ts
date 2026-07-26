@@ -41,6 +41,12 @@ export type AdminDashboardSummary = {
     count: number;
     total_amount_paid: number;
   };
+  action_items: {
+    no_access: number;
+    expired_access: number;
+    unconverted_enrolled_leads: number;
+    attendance_due: number;
+  };
 };
 
 export type DashboardWindowParams = {
@@ -281,6 +287,30 @@ export type AdminStudentPaymentRead = {
   updated_at: string;
 };
 
+export type AdminPaymentRead = AdminStudentPaymentRead & {
+  student: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+  };
+  package: PackageRead | null;
+};
+
+export type AdminPaymentSummary = {
+  currencies: Array<{
+    currency: string;
+    count: number;
+    total_amount_paid: number;
+    average_amount_paid: number;
+    methods: Array<{
+      payment_method: PaymentMethod;
+      count: number;
+      total_amount_paid: number;
+    }>;
+  }>;
+};
+
 export type AdminStudentAccessGrantRead = {
   id: string;
   student_id: string;
@@ -444,6 +474,23 @@ export type AdminStudentPaymentPayload = {
 
 export type AdminStudentPaymentCreatePayload = AdminStudentPaymentPayload;
 export type AdminStudentPaymentUpdatePayload = Partial<AdminStudentPaymentPayload>;
+
+export type AdminPaymentCreatePayload = AdminStudentPaymentCreatePayload & {
+  studentId: string;
+};
+
+export type AdminPaymentListParams = {
+  q?: string;
+  paymentMethod?: PaymentMethod;
+  packageId?: string;
+  currency?: string;
+  paidFrom?: string;
+  paidTo?: string;
+  sortBy?: "paid_at" | "amount_paid";
+  sortOrder?: SortOrder;
+  page?: number;
+  pageSize?: number;
+};
 
 export type AdminStudentAccessGrantCreatePayload = {
   packageId?: string | null;
@@ -714,6 +761,95 @@ export async function listAdminStudentPayments({
   );
 
   return response.data;
+}
+
+export async function listAdminPayments({
+  q,
+  paymentMethod,
+  packageId,
+  currency,
+  paidFrom,
+  paidTo,
+  sortBy = "paid_at",
+  sortOrder = "desc",
+  page = 1,
+  pageSize = 25,
+}: AdminPaymentListParams) {
+  const response = await api.get<PageResponse<AdminPaymentRead>>("/admin/payments", {
+    params: {
+      q: q || undefined,
+      payment_method: paymentMethod,
+      package_id: packageId,
+      currency,
+      paid_from: paidFrom,
+      paid_to: paidTo,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      page,
+      page_size: pageSize,
+    },
+  });
+
+  return response.data;
+}
+
+export async function getAdminPaymentSummary({
+  q,
+  paymentMethod,
+  packageId,
+  currency,
+  paidFrom,
+  paidTo,
+}: AdminPaymentListParams) {
+  const response = await api.get<AdminPaymentSummary>("/admin/payments/summary", {
+    params: {
+      q: q || undefined,
+      payment_method: paymentMethod,
+      package_id: packageId,
+      currency,
+      paid_from: paidFrom,
+      paid_to: paidTo,
+    },
+  });
+
+  return response.data;
+}
+
+export async function createAdminPayment(payload: AdminPaymentCreatePayload) {
+  const response = await api.post<AdminPaymentRead>("/admin/payments", {
+    student_id: payload.studentId,
+    package_id: payload.packageId || null,
+    amount_paid: payload.amountPaid,
+    currency: payload.currency ?? "INR",
+    payment_method: payload.paymentMethod,
+    paid_at: payload.paidAt,
+    notes: payload.notes?.trim() || null,
+  });
+
+  return response.data;
+}
+
+export async function updateAdminPayment({
+  paymentId,
+  payload,
+}: {
+  paymentId: string;
+  payload: AdminStudentPaymentUpdatePayload;
+}) {
+  const response = await api.patch<AdminPaymentRead>(`/admin/payments/${paymentId}`, {
+    package_id: payload.packageId === undefined ? undefined : payload.packageId || null,
+    amount_paid: payload.amountPaid,
+    currency: payload.currency,
+    payment_method: payload.paymentMethod,
+    paid_at: payload.paidAt,
+    notes: payload.notes === undefined ? undefined : payload.notes?.trim() || null,
+  });
+
+  return response.data;
+}
+
+export async function deleteAdminPayment(paymentId: string) {
+  await api.delete(`/admin/payments/${paymentId}`);
 }
 
 export async function createAdminStudentPayment({
