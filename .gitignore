@@ -4,11 +4,14 @@ node_modules/
 # Build output
 dist/
 coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
 
 # Local env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Logs
 npm-debug.log*
