@@ -1,0 +1,52 @@
+name: Deploy frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cp-hub-frontend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - name: Build for the same-origin API
+        env:
+          VITE_API_BASE_URL: /api/v1
+        run: npm run build
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+      - name: Transfer and activate release
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          test -n "$VPS_HOST" && test -n "$VPS_USER"
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9.:-]+$ && "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          release="/opt/cp-hub/frontend/releases/$RELEASE_SHA"
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "mkdir -p '$release'"
+          tar -C dist -cf - . | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "tar -xf - -C '$release' && test -f '$release/index.html' && ln -sfn '$release' /opt/cp-hub/frontend/current.next && mv -Tf /opt/cp-hub/frontend/current.next /opt/cp-hub/frontend/current"
