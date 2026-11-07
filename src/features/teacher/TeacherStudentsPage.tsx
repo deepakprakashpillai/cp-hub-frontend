@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { UsersRound, Layers, Mail, Phone } from "lucide-react";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
+import { listTeacherStudents } from "@/features/teacher/api";
 import { DebouncedSearchInput } from "@/components/ui/DebouncedSearchInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,11 +17,20 @@ type StudentItem = {
 type StudentTab = "one_on_one" | "batches";
 
 export function TeacherStudentsPage() {
-  const { activeTeacher, isLoading } = useActiveTeacher();
+  const { activeTeacherId, isLoading: isTeacherLoading } = useActiveTeacher();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<StudentTab>("one_on_one");
+  const studentsQuery = useQuery({
+    queryKey: ["teacher", activeTeacherId, "students"],
+    queryFn: listTeacherStudents,
+    enabled: Boolean(activeTeacherId),
+  });
 
-  const oneOnOneAssignments: StudentItem[] = activeTeacher?.permanent_one_on_one_students ?? [];
+  const oneOnOneAssignments: StudentItem[] = (studentsQuery.data?.items ?? []).map((item) => ({
+    id: item.student.id,
+    status: item.student.status,
+    user: item.user,
+  }));
 
   const filteredStudents = oneOnOneAssignments.filter((s: StudentItem) => {
     if (!search.trim()) return true;
@@ -77,7 +88,7 @@ export function TeacherStudentsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {isTeacherLoading || studentsQuery.isLoading ? (
         <div className="py-12 text-center text-xs text-muted">Loading assigned students...</div>
       ) : activeTab === "one_on_one" ? (
         filteredStudents.length === 0 ? (

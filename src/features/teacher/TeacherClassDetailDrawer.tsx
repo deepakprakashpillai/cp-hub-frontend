@@ -34,24 +34,25 @@ export function TeacherClassDetailDrawer({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeTeacherId } = useActiveTeacher();
-  const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+  const [tabState, setTabState] = useState<{ classSessionId: string | null; tab: DrawerTab }>({
+    classSessionId: null,
+    tab: "overview",
+  });
   const [selectedBookingForNote, setSelectedBookingForNote] = useState<{ bookingId: string; studentName: string } | null>(null);
 
   // Requirement 20: Attendance Undo state
-  const [lastAttendanceToast, setLastAttendanceToast] = useState<{
+  const [attendanceToastState, setAttendanceToastState] = useState<{
+    classSessionId: string | null;
     bookingId: string;
     studentName: string;
     prevStatus: string;
     newStatus: "attended" | "missed";
   } | null>(null);
-
-  // Requirement 19: Reset Drawer tabs to "Overview" on session change
-  useEffect(() => {
-    if (classSessionId) {
-      setActiveTab("overview");
-      setLastAttendanceToast(null);
-    }
-  }, [classSessionId]);
+  const activeTab = tabState.classSessionId === classSessionId ? tabState.tab : "overview";
+  const lastAttendanceToast = attendanceToastState?.classSessionId === classSessionId
+    ? attendanceToastState
+    : null;
+  const setActiveTab = (tab: DrawerTab) => setTabState({ classSessionId, tab });
 
   // Requirement 16: Drawer Keyboard Navigation (Escape key listener)
   useEffect(() => {
@@ -87,8 +88,8 @@ export function TeacherClassDetailDrawer({
   });
 
   const attendanceMutation = useMutation({
-    mutationFn: (payload: { bookingId: string; status: "attended" | "missed" | "booked" }) =>
-      markClassAttendance(classSessionId!, [{ booking_id: payload.bookingId, status: payload.status as any }]),
+    mutationFn: (payload: { bookingId: string; status: "attended" | "missed" }) =>
+      markClassAttendance(classSessionId!, [{ booking_id: payload.bookingId, status: payload.status }]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacher", activeTeacherId] });
       queryClient.invalidateQueries({ queryKey: ["teacher", "class-roster", classSessionId] });
@@ -117,7 +118,8 @@ export function TeacherClassDetailDrawer({
     const studentName = item.student?.full_name ?? "Student";
     const prevStatus = item.status;
 
-    setLastAttendanceToast({
+    setAttendanceToastState({
+      classSessionId,
       bookingId: item.id,
       studentName,
       prevStatus,
@@ -129,9 +131,10 @@ export function TeacherClassDetailDrawer({
 
   function handleUndoAttendance() {
     if (!lastAttendanceToast) return;
-    const targetStatus = (lastAttendanceToast.prevStatus as "attended" | "missed" | "booked") || "booked";
-    attendanceMutation.mutate({ bookingId: lastAttendanceToast.bookingId, status: targetStatus });
-    setLastAttendanceToast(null);
+    if (lastAttendanceToast.prevStatus === "attended" || lastAttendanceToast.prevStatus === "missed") {
+      attendanceMutation.mutate({ bookingId: lastAttendanceToast.bookingId, status: lastAttendanceToast.prevStatus });
+    }
+    setAttendanceToastState(null);
   }
 
   return (
@@ -455,4 +458,3 @@ export function TeacherClassDetailDrawer({
     </div>
   );
 }
-

@@ -42,7 +42,6 @@ export function TeacherDashboard() {
     queryKey: ["teacher", activeTeacherId, "classes", "today", startOfDay, endOfDay],
     queryFn: () =>
       listTeacherClasses({
-        teacherId: activeTeacherId!,
         startsFrom: startOfDay,
         startsTo: endOfDay,
       }),
@@ -54,7 +53,6 @@ export function TeacherDashboard() {
     queryKey: ["teacher", activeTeacherId, "classes", "upcoming"],
     queryFn: () =>
       listTeacherClasses({
-        teacherId: activeTeacherId!,
         startsFrom: new Date().toISOString(),
         pageSize: 5,
       }),
@@ -64,7 +62,7 @@ export function TeacherDashboard() {
   // Query rules for total weekly availability count
   const { data: rulesData, isLoading: isRulesLoading } = useQuery({
     queryKey: ["teacher", activeTeacherId, "rules"],
-    queryFn: () => listTeacherRules(activeTeacherId!),
+    queryFn: () => listTeacherRules(),
     enabled: Boolean(activeTeacherId),
   });
 
@@ -74,7 +72,6 @@ export function TeacherDashboard() {
     queryKey: ["teacher", activeTeacherId, "availability-slots", availabilityWindow],
     queryFn: () =>
       listTeacherSlots({
-        teacherId: activeTeacherId!,
         startsFrom: availabilityWindow.startsFrom,
         startsTo: availabilityWindow.endsAt,
       }),

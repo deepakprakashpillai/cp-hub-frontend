@@ -1,14 +1,13 @@
 import { useThemeStore } from "@/app/theme-store";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
-import { Moon, Sun, ShieldAlert, UserCheck } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterSelect } from "@/components/ui/FilterSelect";
 import { QuietLabel } from "@/components/ui/QuietLabel";
 import { cn } from "@/lib/utils";
 
 export function TeacherSettingsPage() {
   const { theme, setTheme } = useThemeStore();
-  const { teachers, activeTeacher, activeTeacherId, setSelectedTeacherId } = useActiveTeacher();
+  const { activeTeacher } = useActiveTeacher();
 
   return (
     <section className="space-y-5">
@@ -88,32 +87,6 @@ export function TeacherSettingsPage() {
         </div>
       </div>
 
-      {/* Pre-auth Developer Context card */}
-      <div className="rounded-md border border-border bg-surface p-5 space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <ShieldAlert className="h-4 w-4 text-brand" />
-          <h2 className="text-base font-semibold text-primary">Development Teacher Context (Pre-Auth Mode)</h2>
-        </div>
-        <p className="text-xs text-muted leading-relaxed">
-          Select which teacher profile to operate as during pre-auth development. All `/teacher/*` pages will fetch schedules, availability, and student assignments for the chosen teacher.
-        </p>
-
-        <div className="space-y-2 pt-2">
-          <label className="text-xs font-medium text-primary flex items-center gap-1.5 mb-1.5">
-            <UserCheck className="h-3.5 w-3.5 text-brand" /> Active Teacher Context
-          </label>
-          <FilterSelect
-            value={activeTeacherId ?? ""}
-            onChange={(val) => setSelectedTeacherId(val || null)}
-            options={teachers.map(t => ({
-              value: t.teacher.id,
-              label: `${t.teacher.display_name} (${t.user.full_name} - ${t.user.email})`
-            }))}
-            includeAll={false}
-            className="w-full"
-          />
-        </div>
-      </div>
     </section>
   );
 }

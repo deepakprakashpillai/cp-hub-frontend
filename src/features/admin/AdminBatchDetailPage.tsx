@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, ArrowUpRight, CalendarDays, Plus, X } from "lucide-react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { DebouncedSearchInput } from "@/components/ui/DebouncedSearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -297,6 +297,8 @@ function StudentRow({
   onChanged: () => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const navigate = useNavigate();
+  const openStudent = () => navigate(`/admin/students/${studentItem.student.id}`);
   const remove = useMutation({
     mutationFn: () =>
       removeAdminBatchGroupStudent({
@@ -311,14 +313,20 @@ function StudentRow({
   });
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border/40 bg-surface-subtle/65 px-3 py-2">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openStudent}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openStudent();
+        }
+      }}
+      className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border/40 bg-surface-subtle/65 px-3 py-2 transition hover:border-border hover:bg-surface-subtle focus:outline-none focus:ring-2 focus:ring-brand/40"
+    >
       <div className="min-w-0">
-        <Link
-          to={`/admin/students/${studentItem.student.id}`}
-          className="truncate text-xs font-medium text-primary hover:underline hover:text-brand"
-        >
-          {studentItem.user.full_name}
-        </Link>
+        <p className="truncate text-xs font-medium text-primary">{studentItem.user.full_name}</p>
         <p className="truncate text-[11px] text-muted">
           {studentItem.user.email} {studentItem.user.phone ? `· ${studentItem.user.phone}` : ""}
         </p>
@@ -334,14 +342,20 @@ function StudentRow({
             <button
               type="button"
               disabled={remove.isPending}
-              onClick={() => remove.mutate()}
+              onClick={(event) => {
+                event.stopPropagation();
+                remove.mutate();
+              }}
               className="h-7 rounded-md bg-danger px-2 text-xs font-medium text-white disabled:opacity-50"
             >
               Confirm
             </button>
             <button
               type="button"
-              onClick={() => setConfirm(false)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setConfirm(false);
+              }}
               className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface"
             >
               <X className="h-3.5 w-3.5" />
@@ -350,7 +364,10 @@ function StudentRow({
         ) : (
           <button
             type="button"
-            onClick={() => setConfirm(true)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setConfirm(true);
+            }}
             className="h-7 rounded-md px-2 text-xs font-medium text-muted hover:bg-surface hover:text-danger"
           >
             Remove

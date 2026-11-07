@@ -34,7 +34,7 @@ export function SessionFeedbackThread({
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["teacher", activeTeacherId, "booking-notes", bookingId],
-    queryFn: () => listBookingNotes(bookingId, activeTeacherId!),
+    queryFn: () => listBookingNotes(bookingId),
     enabled: Boolean(activeTeacherId && bookingId),
   });
 
@@ -49,7 +49,6 @@ export function SessionFeedbackThread({
     mutationFn: (payload: NoteFormValues) =>
       createBookingNote({
         booking_id: bookingId,
-        teacher_id: activeTeacherId!,
         note: payload.note,
         visibility: payload.visibility,
       }),

@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   CalendarDays,
   CircleDollarSign,
   Clock,
@@ -11,19 +12,25 @@ import {
   Sparkles,
   UsersRound,
   X,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useLocation } from "react-router";
 
 import logoUrl from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/auth-context";
+import { useNavigate } from "react-router";
+import { getUnreadNotificationCount } from "@/features/notifications/api";
 
 type RailLink = {
   to: string;
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  notification?: boolean;
 };
 
 const adminLinks: RailLink[] = [
@@ -34,6 +41,7 @@ const adminLinks: RailLink[] = [
   { to: "/admin/programs", label: "Batches", icon: BarChart3 },
   { to: "/admin/payments", label: "Finance", icon: CircleDollarSign },
   { to: "/admin/leads", label: "Leads", icon: Sparkles },
+  { to: "/admin/notifications", label: "Notifications", icon: Bell, notification: true },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -42,6 +50,7 @@ const teacherLinks: RailLink[] = [
   { to: "/teacher/classes", label: "Classes & Schedule", icon: CalendarDays },
   { to: "/teacher/availability", label: "Availability", icon: Clock },
   { to: "/teacher/students", label: "My Students", icon: UsersRound },
+  { to: "/teacher/notifications", label: "Notifications", icon: Bell, notification: true },
   { to: "/teacher/settings", label: "Settings", icon: Settings },
 ];
 
@@ -50,6 +59,7 @@ const studentLinks: RailLink[] = [
   { to: "/student/schedule", label: "Schedule a Class", icon: CalendarDays },
   { to: "/student/classes", label: "My Classes", icon: Clock },
   { to: "/student/feedbacks", label: "Feedbacks", icon: MessageSquare },
+  { to: "/student/notifications", label: "Notifications", icon: Bell, notification: true },
   { to: "/student/settings", label: "Settings", icon: Settings },
 ];
 
@@ -61,12 +71,28 @@ const portalLinks: RailLink[] = [
 ];
 
 export function AppShell() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isAdminWorkspace = location.pathname.startsWith("/admin");
   const isTeacherWorkspace = location.pathname.startsWith("/teacher");
   const isStudentWorkspace = location.pathname.startsWith("/student");
   const isStandaloneLeadsWorkspace = location.pathname.startsWith("/leads");
+  const isNotificationRole =
+    user?.role === "admin" || user?.role === "teacher" || user?.role === "student";
+  const unreadQuery = useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: getUnreadNotificationCount,
+    enabled: isNotificationRole,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const notificationPath = isAdminWorkspace
+    ? "/admin/notifications"
+    : isTeacherWorkspace
+      ? "/teacher/notifications"
+      : "/student/notifications";
 
   let links = portalLinks;
   let workspaceLabel = "Development portals";
@@ -83,32 +109,67 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-background text-primary">
-      <div className={cn("min-h-screen", !isStandaloneLeadsWorkspace && "lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]")}>
+      <div
+        className={cn(
+          "min-h-screen",
+          !isStandaloneLeadsWorkspace && "lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]",
+        )}
+      >
         {!isStandaloneLeadsWorkspace ? (
           <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-surface px-4 py-4 lg:flex">
-            <WorkspaceRail workspaceLabel={workspaceLabel} links={links} />
+            <WorkspaceRail
+              workspaceLabel={workspaceLabel}
+              links={links}
+              unreadCount={unreadQuery.data ?? 0}
+              userName={user?.full_name}
+              onSignOut={async () => {
+                await signOut();
+                navigate("/login", { replace: true });
+              }}
+            />
           </aside>
         ) : null}
 
         {!isStandaloneLeadsWorkspace ? (
           <div className="sticky top-0 z-40 flex h-12 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
-          <div className="flex min-w-0 items-center gap-2">
-            <img src={logoUrl} alt="CP Hub" className="h-7 w-7 object-contain" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-none text-primary">CP Hub</p>
-              <p className="mt-0.5 text-[11px] leading-none text-muted">
-                {isAdminWorkspace ? "Admin" : isTeacherWorkspace ? "Teacher" : isStudentWorkspace ? "Student" : "Portal"}
-              </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <img src={logoUrl} alt="CP Hub" className="h-7 w-7 object-contain" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold leading-none text-primary">CP Hub</p>
+                <p className="mt-0.5 text-[11px] leading-none text-muted">
+                  {isAdminWorkspace
+                    ? "Admin"
+                    : isTeacherWorkspace
+                      ? "Teacher"
+                      : isStudentWorkspace
+                        ? "Student"
+                        : "Portal"}
+                </p>
+              </div>
             </div>
-          </div>
-          <button
-            type="button"
-            className="inline-grid h-8 w-8 place-items-center rounded-md text-muted transition hover:bg-surface-subtle hover:text-primary"
-            onClick={() => setIsMobileNavOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu className="h-4 w-4" aria-hidden="true" />
-          </button>
+            <div className="flex items-center gap-1">
+              {isNotificationRole ? (
+                <button
+                  type="button"
+                  className="relative inline-grid h-8 w-8 place-items-center rounded-md text-muted transition hover:bg-surface-subtle hover:text-primary"
+                  onClick={() => navigate(notificationPath)}
+                  aria-label="Open notifications"
+                >
+                  <Bell className="h-4 w-4" aria-hidden="true" />
+                  {unreadQuery.data ? (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-brand" />
+                  ) : null}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="inline-grid h-8 w-8 place-items-center rounded-md text-muted transition hover:bg-surface-subtle hover:text-primary"
+                onClick={() => setIsMobileNavOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -143,7 +204,13 @@ export function AppShell() {
                 links={links}
                 showHeader={false}
                 showFooter={false}
+                unreadCount={unreadQuery.data ?? 0}
                 onNavigate={() => setIsMobileNavOpen(false)}
+                userName={user?.full_name}
+                onSignOut={async () => {
+                  await signOut();
+                  navigate("/login", { replace: true });
+                }}
               />
             </aside>
           </div>
@@ -165,12 +232,18 @@ function WorkspaceRail({
   showHeader = true,
   showFooter = true,
   onNavigate,
+  unreadCount = 0,
+  userName,
+  onSignOut,
 }: {
   links: RailLink[];
   workspaceLabel: string;
   showHeader?: boolean;
   showFooter?: boolean;
   onNavigate?: () => void;
+  unreadCount?: number;
+  userName?: string;
+  onSignOut?: () => Promise<void>;
 }) {
   return (
     <>
@@ -204,6 +277,11 @@ function WorkspaceRail({
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="truncate text-sm font-medium">{link.label}</span>
+              {link.notification && unreadCount > 0 ? (
+                <span className="ml-auto min-w-4 rounded-full bg-brand/15 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-brand">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : null}
             </NavLink>
           );
         })}
@@ -211,12 +289,17 @@ function WorkspaceRail({
 
       {showFooter ? (
         <div className="space-y-2 border-t border-border pt-4">
-          <div className="rounded-md border border-border bg-surface-subtle p-3">
-            <p className="text-xs font-medium text-primary">Pre-auth mode</p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              Portal routes use development context until auth is added.
-            </p>
-          </div>
+          {userName ? <p className="truncate px-1 text-xs text-muted">{userName}</p> : null}
+          {onSignOut ? (
+            <button
+              type="button"
+              onClick={() => void onSignOut()}
+              className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-xs font-medium text-muted transition hover:bg-surface-subtle hover:text-primary"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          ) : null}
         </div>
       ) : null}
     </>

@@ -32,8 +32,7 @@ pnpm-debug.log*
 # Local agent workspace and installed skills
 .agents/
 
-# Generated API artifacts can be regenerated from backend OpenAPI.
-src/api/generated/schema.ts
+# Keep generated API types available for clean production builds.
 
 docs/
 graphify-out/

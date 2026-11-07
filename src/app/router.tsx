@@ -26,38 +26,244 @@ import { TeacherClassDetailPage } from "@/features/teacher/TeacherClassDetailPag
 import { TeacherAvailabilityPage } from "@/features/teacher/TeacherAvailabilityPage";
 import { TeacherStudentsPage } from "@/features/teacher/TeacherStudentsPage";
 import { TeacherSettingsPage } from "@/features/teacher/TeacherSettingsPage";
+import { RequireAuth } from "@/features/auth/RequireAuth";
+import { ForgotPasswordPage, LoginPage, PasswordActionPage } from "@/features/auth/AuthPages";
+import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 
 export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/set-password", element: <PasswordActionPage mode="setup" /> },
+  { path: "/reset-password", element: <PasswordActionPage mode="reset" /> },
   {
     path: "/",
     element: <AppShell />,
     children: [
       { index: true, element: <Navigate to="/admin" replace /> },
-      { path: "admin", element: <AdminDashboard /> },
-      { path: "admin/students", element: <AdminStudentsPage /> },
-      { path: "admin/students/:studentId", element: <AdminStudentDetailPage /> },
-      { path: "admin/teachers", element: <AdminTeachersPage /> },
-      { path: "admin/teachers/:teacherId", element: <AdminTeacherDetailPage /> },
-      { path: "admin/schedule", element: <AdminSchedulePage /> },
-      { path: "admin/schedule/batch-days/:batchScheduleDayId", element: <AdminBatchScheduleDayDetailPage /> },
-      { path: "admin/schedule/:classSessionId", element: <AdminScheduleDetailPage /> },
-      { path: "admin/programs", element: <AdminProgramsPage /> },
-      { path: "admin/programs/batches/:batchGroupId", element: <AdminBatchDetailPage /> },
-      { path: "admin/payments", element: <AdminFinancePage /> },
-      { path: "admin/leads", element: <LeadsWorkspace canConvert /> },
-      { path: "admin/settings", element: <AdminPlannedPage page="settings" /> },
-      { path: "teacher", element: <TeacherDashboard /> },
-      { path: "teacher/classes", element: <TeacherClassesPage /> },
-      { path: "teacher/classes/:sessionId", element: <TeacherClassDetailPage /> },
-      { path: "teacher/availability", element: <TeacherAvailabilityPage /> },
-      { path: "teacher/students", element: <TeacherStudentsPage /> },
-      { path: "teacher/settings", element: <TeacherSettingsPage /> },
-      { path: "student", element: <StudentDashboard /> },
-      { path: "student/schedule", element: <StudentSchedulePage /> },
-      { path: "student/classes", element: <StudentClassesPage /> },
-      { path: "student/feedbacks", element: <StudentFeedbacksPage /> },
-      { path: "student/settings", element: <StudentSettingsPage /> },
-      { path: "leads", element: <LeadManagementHome /> },
+      {
+        path: "admin",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminDashboard />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/students",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminStudentsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/students/:studentId",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminStudentDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/teachers",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminTeachersPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/teachers/:teacherId",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminTeacherDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/schedule",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminSchedulePage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/schedule/batch-days/:batchScheduleDayId",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminBatchScheduleDayDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/schedule/:classSessionId",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminScheduleDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/programs",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminProgramsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/programs/batches/:batchGroupId",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminBatchDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/payments",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminFinancePage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/leads",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <LeadsWorkspace canConvert />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/notifications",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <NotificationsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "admin/settings",
+        element: (
+          <RequireAuth roles={["admin"]}>
+            <AdminPlannedPage page="settings" />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherDashboard />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/classes",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherClassesPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/classes/:sessionId",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherClassDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/availability",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherAvailabilityPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/students",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherStudentsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/notifications",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <NotificationsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "teacher/settings",
+        element: (
+          <RequireAuth roles={["teacher"]}>
+            <TeacherSettingsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <StudentDashboard />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student/schedule",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <StudentSchedulePage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student/classes",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <StudentClassesPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student/feedbacks",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <StudentFeedbacksPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student/notifications",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <NotificationsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "student/settings",
+        element: (
+          <RequireAuth roles={["student"]}>
+            <StudentSettingsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "leads",
+        element: (
+          <RequireAuth roles={["admin", "lead_manager"]}>
+            <LeadManagementHome />
+          </RequireAuth>
+        ),
+      },
     ],
   },
 ]);

@@ -29,7 +29,7 @@ export function StudentDashboard() {
 
   const bookingsQuery = useQuery({
     queryKey: ["student-bookings", "dashboard", studentId],
-    queryFn: () => listStudentBookings({ studentId: studentId!, status: "booked", pageSize: 5 }),
+    queryFn: () => listStudentBookings({ status: "booked", pageSize: 5 }),
     enabled: Boolean(studentId),
   });
 
@@ -73,14 +73,8 @@ export function StudentDashboard() {
         <div className="rounded-md border border-border bg-surface p-5">
           <h2 className="text-base font-semibold text-primary">No active student context</h2>
           <p className="mt-1 text-sm text-muted">
-            Please select an active student in Settings to view your student workspace.
+            Your signed-in account is not linked to an active student profile.
           </p>
-          <Link
-            to="/student/settings"
-            className="mt-4 inline-flex h-8 items-center justify-center rounded-md bg-brand px-3 text-xs font-medium text-white transition hover:opacity-90 cursor-pointer"
-          >
-            Go to Settings
-          </Link>
         </div>
       </section>
     );

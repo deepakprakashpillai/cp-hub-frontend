@@ -8,16 +8,18 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { QuietLabel } from "@/components/ui/QuietLabel";
 import { cn } from "@/lib/utils";
+import { isDevAuthBypassEnabled } from "@/features/auth/dev-bypass";
 
 export function StudentSettingsPage() {
   const { activeStudent, students, setSelectedStudentId, isLoading } = useActiveStudent();
   const { theme, setTheme } = useThemeStore();
+  const canSwitchStudent = isDevAuthBypassEnabled();
 
   return (
     <section className="space-y-6">
       <PageHeader eyebrow="Student" title="Settings & Account" />
 
-      {/* Pre-Auth Context Switcher Card */}
+      {canSwitchStudent ? (
       <div className="rounded-md border border-border bg-surface p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
@@ -44,6 +46,7 @@ export function StudentSettingsPage() {
           />
         </div>
       </div>
+      ) : null}
 
       {/* Profile Overview Card */}
       {activeStudent ? (

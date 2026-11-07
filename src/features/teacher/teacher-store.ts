@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTeacher, listTeachers, type TeacherRead } from "@/features/teacher/api";
+import { getCurrentTeacher, getTeacherForDev, listTeachersForDev, type TeacherRead } from "@/features/teacher/api";
+import { useAuth } from "@/features/auth/auth-context";
+import { isDevAuthBypassEnabled } from "@/features/auth/dev-bypass";
 
 type TeacherState = {
   selectedTeacherId: string | null;
@@ -19,31 +21,41 @@ export const useTeacherStore = create<TeacherState>()(
 );
 
 export function useActiveTeacher() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { selectedTeacherId, setSelectedTeacherId } = useTeacherStore();
 
-  const listQuery = useQuery({
+  const devListQuery = useQuery({
     queryKey: ["teachers", "list-active"],
-    queryFn: listTeachers,
+    queryFn: listTeachersForDev,
+    enabled: isDevAuthBypassEnabled(),
   });
 
-  const teachers = listQuery.data?.items ?? [];
+  const teachers = devListQuery.data?.items ?? [];
 
   // Determine active teacher ID
-  const activeTeacherSummary =
-    teachers.find((t) => t.teacher.id === selectedTeacherId) ?? teachers[0];
-  const activeTeacherId = activeTeacherSummary?.teacher.id ?? selectedTeacherId ?? null;
+  const authenticatedTeacherId = user?.role === "teacher" ? user.teacher_id ?? null : null;
+  const activeTeacherSummary = isDevAuthBypassEnabled()
+    ? teachers.find((teacher) => teacher.teacher.id === selectedTeacherId) ?? teachers[0]
+    : undefined;
+  const activeTeacherId = authenticatedTeacherId ?? activeTeacherSummary?.teacher.id ?? null;
 
-  // Fetch full detail for active teacher (includes permanent_one_on_one_students & bio)
-  const detailQuery = useQuery({
-    queryKey: ["teacher", "detail", activeTeacherId],
-    queryFn: () => getTeacher(activeTeacherId!),
-    enabled: Boolean(activeTeacherId),
+  const authenticatedProfileQuery = useQuery({
+    queryKey: ["teacher", "me"],
+    queryFn: getCurrentTeacher,
+    enabled: Boolean(authenticatedTeacherId) && !isDevAuthBypassEnabled(),
   });
 
-  const activeTeacher: TeacherRead | undefined = detailQuery.data ?? activeTeacherSummary;
+  const devProfileQuery = useQuery({
+    queryKey: ["teacher", "detail", activeTeacherId],
+    queryFn: () => getTeacherForDev(activeTeacherId!),
+    enabled: Boolean(activeTeacherId) && isDevAuthBypassEnabled(),
+  });
+
+  const activeTeacher: TeacherRead | undefined = authenticatedProfileQuery.data ?? devProfileQuery.data ?? activeTeacherSummary;
 
   function switchActiveTeacher(teacherId: string | null) {
+    if (!isDevAuthBypassEnabled()) return;
     setSelectedTeacherId(teacherId);
     queryClient.invalidateQueries({ queryKey: ["teacher"] });
   }
@@ -53,7 +65,7 @@ export function useActiveTeacher() {
     activeTeacher,
     activeTeacherId,
     setSelectedTeacherId: switchActiveTeacher,
-    isLoading: listQuery.isLoading || (Boolean(activeTeacherId) && detailQuery.isLoading),
-    error: listQuery.error || detailQuery.error,
+    isLoading: devListQuery.isLoading || authenticatedProfileQuery.isLoading || devProfileQuery.isLoading,
+    error: devListQuery.error || authenticatedProfileQuery.error || devProfileQuery.error,
   };
 }

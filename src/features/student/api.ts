@@ -103,31 +103,34 @@ export type StudentFeedbackNoteRead = {
   class_session?: StudentBookingSession;
 };
 
-// Student List & Active Profile
-export async function listStudents(): Promise<PageResponse<StudentRead>> {
+// Development-only identity lookup. Authenticated student requests must use /student/me.
+export async function listStudentsForDev(): Promise<PageResponse<StudentRead>> {
   const response = await api.get<PageResponse<StudentRead>>("/admin/students", {
     params: { page_size: 100 },
   });
   return response.data;
 }
 
-export async function getStudentDetail(studentId: string): Promise<StudentRead> {
+export async function getStudentForDev(studentId: string): Promise<StudentRead> {
   const response = await api.get<StudentRead>(`/admin/students/${studentId}`);
+  return response.data;
+}
+
+export async function getCurrentStudent(): Promise<StudentRead> {
+  const response = await api.get<StudentRead>("/student/me");
   return response.data;
 }
 
 // Student Bookings
 export async function listStudentBookings(params: {
-  studentId: string;
   status?: string;
   startsFrom?: string;
   startsTo?: string;
   page?: number;
   pageSize?: number;
 }): Promise<PageResponse<StudentBookingRead>> {
-  const response = await api.get<PageResponse<any>>("/admin/bookings", {
+  const response = await api.get<PageResponse<StudentBookingRead>>("/student/me/bookings", {
     params: {
-      student_id: params.studentId,
       status: params.status !== "all" ? params.status : undefined,
       starts_from: params.startsFrom,
       starts_to: params.startsTo,
@@ -136,32 +139,14 @@ export async function listStudentBookings(params: {
     },
   });
 
-  const bookings = response.data.items;
-  const classSessionIds = Array.from(new Set(bookings.map((b: any) => b.class_session_id)));
-  
-  const classSessions = await Promise.all(
-    classSessionIds.map(id => api.get(`/admin/classes/${id}`).then(res => res.data).catch(() => null))
-  );
-  
-  const classSessionMap = new Map(classSessions.filter(Boolean).map((c: any) => [c.id, c]));
-  
-  const enrichedBookings = bookings.map((b: any) => ({
-    ...b,
-    class_session: classSessionMap.get(b.class_session_id) || undefined
-  }));
-
-  return {
-    ...response.data,
-    items: enrichedBookings
-  };
+  return response.data;
 }
 
 // Access Grants
-export async function listStudentAccessGrants(studentId: string): Promise<PageResponse<StudentAccessGrantRead>> {
-  const response = await api.get<PageResponse<StudentAccessGrantRead>>(
-    `/admin/students/${studentId}/access-grants`,
-    { params: { page_size: 50 } },
-  );
+export async function listStudentAccessGrants(): Promise<PageResponse<StudentAccessGrantRead>> {
+  const response = await api.get<PageResponse<StudentAccessGrantRead>>("/student/me/access-grants", {
+    params: { page_size: 50 },
+  });
   return response.data;
 }
 
@@ -171,7 +156,7 @@ export async function listAvailableTeacherSlots(params: {
   startsFrom?: string;
   startsTo?: string;
 }): Promise<PageResponse<StudentTeacherSlotRead>> {
-  const response = await api.get<PageResponse<StudentTeacherSlotRead>>("/admin/teacher-availability/slots", {
+  const response = await api.get<PageResponse<StudentTeacherSlotRead>>("/student/me/available-slots", {
     params: {
       teacher_id: params.teacherId,
       starts_from: params.startsFrom,
@@ -184,39 +169,37 @@ export async function listAvailableTeacherSlots(params: {
 }
 
 export async function bookOneOnOneClass(payload: {
-  student_id: string;
   teacher_availability_slot_id: string;
 }): Promise<StudentBookingRead> {
-  const response = await api.post<StudentBookingRead>("/bookings/one-on-one", payload);
+  const response = await api.post<StudentBookingRead>("/student/me/bookings/one-on-one", payload);
   return response.data;
 }
 
 // Batch Class Scheduling
-export async function listStudentBatchScheduleDays(studentId: string): Promise<BatchScheduleDayRead[]> {
-  const response = await api.get<BatchScheduleDayRead[]>(`/students/${studentId}/batch-schedule-days`);
+export async function listStudentBatchScheduleDays(): Promise<BatchScheduleDayRead[]> {
+  const response = await api.get<BatchScheduleDayRead[]>("/student/me/batch-schedule-days");
   return response.data;
 }
 
 export async function selectBatchScheduleDayOption(
-  studentId: string,
   dayId: string,
   classSessionId: string | null,
 ): Promise<void> {
-  await api.put(`/students/${studentId}/batch-schedule-days/${dayId}/selection`, {
+  await api.put(`/student/me/batch-schedule-days/${dayId}/selection`, {
     class_session_id: classSessionId,
   });
 }
 
 // Cancellation & Reschedule
 export async function cancelStudentBooking(bookingId: string, reason?: string): Promise<void> {
-  await api.post(`/bookings/${bookingId}/cancel`, { reason });
+  await api.post(`/student/me/bookings/${bookingId}/cancel`, { reason });
 }
 
 export async function rescheduleStudentBookingOneOnOne(
   bookingId: string,
   teacherAvailabilitySlotId: string,
 ): Promise<StudentBookingRead> {
-  const response = await api.post<StudentBookingRead>(`/bookings/${bookingId}/reschedule/one-on-one`, {
+  const response = await api.post<StudentBookingRead>(`/student/me/bookings/${bookingId}/reschedule/one-on-one`, {
     teacher_availability_slot_id: teacherAvailabilitySlotId,
   });
   return response.data;
@@ -226,28 +209,14 @@ export async function rescheduleStudentBookingBatch(
   bookingId: string,
   classSessionId: string,
 ): Promise<StudentBookingRead> {
-  const response = await api.post<StudentBookingRead>(`/bookings/${bookingId}/reschedule/batch`, {
+  const response = await api.post<StudentBookingRead>(`/student/me/bookings/${bookingId}/reschedule/batch`, {
     class_session_id: classSessionId,
   });
   return response.data;
 }
 
 // Feedback Notes
-export async function listStudentFeedbacks(studentId: string): Promise<StudentFeedbackNoteRead[]> {
-  // Fetch student's bookings first to collect notes
-  const bookingsResponse = await listStudentBookings({ studentId, pageSize: 100 });
-  const notes: StudentFeedbackNoteRead[] = [];
-
-  for (const booking of bookingsResponse.items) {
-    try {
-      const notesRes = await api.get<PageResponse<StudentFeedbackNoteRead>>(`/admin/bookings/${booking.id}/notes`);
-      const visibleNotes = (notesRes.data.items || []).filter((n) => n.visibility === "student_visible");
-      notes.push(...visibleNotes);
-    } catch {
-      // Ignore if notes endpoint yields 404 or empty
-    }
-  }
-
-  // Sort notes newest first
-  return notes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+export async function listStudentFeedbacks(): Promise<StudentFeedbackNoteRead[]> {
+  const response = await api.get<StudentFeedbackNoteRead[]>("/student/me/feedbacks");
+  return response.data;
 }

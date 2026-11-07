@@ -40,13 +40,13 @@ export function StudentSchedulePage() {
 
   const batchDaysQuery = useQuery({
     queryKey: ["student-batch-days", studentId],
-    queryFn: () => listStudentBatchScheduleDays(studentId!),
+    queryFn: () => listStudentBatchScheduleDays(),
     enabled: Boolean(isBatch && studentId),
   });
 
   const bookSlotMutation = useMutation({
     mutationFn: (slotId: string) =>
-      bookOneOnOneClass({ student_id: studentId!, teacher_availability_slot_id: slotId }),
+      bookOneOnOneClass({ teacher_availability_slot_id: slotId }),
     onSuccess: () => {
       setBookingSuccessMsg("1-on-1 Class successfully booked!");
       setErrorMsg(null);
@@ -67,7 +67,7 @@ export function StudentSchedulePage() {
 
   const selectBatchOptionMutation = useMutation({
     mutationFn: ({ dayId, classSessionId }: { dayId: string; classSessionId: string | null }) =>
-      selectBatchScheduleDayOption(studentId!, dayId, classSessionId),
+      selectBatchScheduleDayOption(dayId, classSessionId),
     onSuccess: () => {
       setBookingSuccessMsg("Batch timing option selection updated!");
       setErrorMsg(null);

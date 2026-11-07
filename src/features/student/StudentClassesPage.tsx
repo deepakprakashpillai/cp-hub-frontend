@@ -37,7 +37,6 @@ export function StudentClassesPage() {
     queryKey: ["student-bookings", "classes-page", studentId, statusFilter],
     queryFn: () =>
       listStudentBookings({
-        studentId: studentId!,
         status: statusFilter || undefined,
         pageSize: 100,
       }),
@@ -77,7 +76,7 @@ export function StudentClassesPage() {
       <section className="space-y-6">
         <PageHeader eyebrow="Student" title="My Classes" />
         <Callout title="No active student context" tone="info">
-          Please select an active student in Settings.
+          Your signed-in account is not linked to a student profile.
         </Callout>
       </section>
     );
@@ -211,7 +210,7 @@ export function StudentClassesPage() {
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setTabFilter(tab.key as any)}
+            onClick={() => setTabFilter(tab.key as typeof tabFilter)}
                 className={cn(
                   "relative inline-flex items-center gap-2 h-9 px-2 text-xs font-medium transition whitespace-nowrap",
                   isActive
@@ -547,4 +546,3 @@ function BookingStatusBadge({ status }: { status: string }) {
       return <StatusBadge tone="neutral">{status}</StatusBadge>;
   }
 }
-

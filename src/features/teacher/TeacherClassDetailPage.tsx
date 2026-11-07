@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, RefreshCw, CheckCircle, XCircle, FileText, UserPlus } from "lucide-react";
+import { ArrowLeft, RefreshCw, CheckCircle, XCircle, FileText, UserPlus, CalendarClock, Ban } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { useActiveTeacher } from "@/features/teacher/teacher-store";
 import { CapacityProgressBar } from "@/features/teacher/TeacherClassesPage";
@@ -8,15 +8,19 @@ import {
   getTeacherClassSession,
   getClassRoster,
   markClassAttendance,
+  cancelTeacherBatchClassSession,
+  rescheduleTeacherBatchClassSession,
   type ClassRosterItem,
+  type TeacherClassSession,
 } from "@/features/teacher/api";
-import { formatDateTime, formatTime, formatProgram } from "@/features/admin/teachers/teacher-utils";
+import { formatDateTime, formatTime, formatProgram, getErrorMessage, localDateTimeToIso, localInputValue } from "@/features/admin/teachers/teacher-utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { QuietLabel } from "@/components/ui/QuietLabel";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Callout } from "@/components/ui/Callout";
 import { SessionFeedbackThread } from "@/features/teacher/SessionFeedbackThread";
 import { SessionFeedbackNoteModal } from "@/features/teacher/SessionFeedbackNoteModal";
+import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 
 type SessionDetailTab = "overview" | "roster" | "feedback";
@@ -133,6 +137,8 @@ export function TeacherClassDetailPage() {
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </button>
+
+            <TeacherBatchSessionActions session={session} />
 
             {roster.length > 0 && (
               <button
@@ -424,4 +430,115 @@ export function TeacherClassDetailPage() {
       )}
     </section>
   );
+}
+
+function TeacherBatchSessionActions({ session }: { session: TeacherClassSession }) {
+  const client = useQueryClient();
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [reason, setReason] = useState("");
+  const canManage = session.program_type === "batch"
+    && Boolean(session.batch_schedule_day_id)
+    && session.status === "scheduled"
+    && new Date(session.starts_at) > new Date();
+
+  const refreshClasses = () => {
+    void client.invalidateQueries({ queryKey: ["teacher", "classes"] });
+    void client.invalidateQueries({ queryKey: ["teacher"] });
+  };
+
+  const reschedule = useMutation({
+    mutationFn: () => {
+      const nextStartsAt = localDateTimeToIso(startsAt);
+      const nextEndsAt = localDateTimeToIso(endsAt);
+      if (!startsAt || !endsAt || new Date(nextStartsAt) >= new Date(nextEndsAt)) {
+        throw new Error("Choose an end time after the start time.");
+      }
+      return rescheduleTeacherBatchClassSession({
+        classSessionId: session.id,
+        startsAt: nextStartsAt,
+        endsAt: nextEndsAt,
+        reason,
+      });
+    },
+    onSuccess: () => {
+      refreshClasses();
+      setRescheduleOpen(false);
+    },
+  });
+
+  const cancel = useMutation({
+    mutationFn: () => cancelTeacherBatchClassSession({ classSessionId: session.id, reason }),
+    onSuccess: () => {
+      refreshClasses();
+      setCancelOpen(false);
+    },
+  });
+
+  if (!canManage) return null;
+
+  const openReschedule = () => {
+    setStartsAt(localInputValue(session.starts_at));
+    setEndsAt(localInputValue(session.ends_at));
+    setReason("");
+    setRescheduleOpen(true);
+  };
+
+  const openCancel = () => {
+    setReason("");
+    setCancelOpen(true);
+  };
+
+  return <>
+    <button
+      type="button"
+      onClick={openReschedule}
+      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-primary transition hover:bg-surface-subtle"
+    >
+      <CalendarClock className="h-3.5 w-3.5" /> Change time
+    </button>
+    <button
+      type="button"
+      onClick={openCancel}
+      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-danger transition hover:bg-danger/10"
+    >
+      <Ban className="h-3.5 w-3.5" /> Cancel session
+    </button>
+    <Modal
+      title="Change session time"
+      isOpen={rescheduleOpen}
+      onClose={() => setRescheduleOpen(false)}
+      footer={<><button type="button" onClick={() => setRescheduleOpen(false)} className="h-8 rounded-md px-2 text-xs text-muted hover:bg-surface-subtle">Close</button><button type="button" disabled={reschedule.isPending} onClick={() => reschedule.mutate()} className="h-8 rounded-md bg-brand px-3 text-xs font-medium text-white disabled:opacity-50">{reschedule.isPending ? "Saving…" : "Save time"}</button></>}
+    >
+      <div className="space-y-3">
+        <p className="text-xs text-muted">This changes only this batch session. Booked students stay in the session and receive its updated time.</p>
+        <TimeField label="Starts" value={startsAt} onChange={setStartsAt} />
+        <TimeField label="Ends" value={endsAt} onChange={setEndsAt} />
+        <ReasonField value={reason} onChange={setReason} label="Reason (optional)" />
+        {reschedule.isError ? <p className="text-xs text-danger">{getErrorMessage(reschedule.error)}</p> : null}
+      </div>
+    </Modal>
+    <Modal
+      title="Cancel this session"
+      isOpen={cancelOpen}
+      onClose={() => setCancelOpen(false)}
+      footer={<><button type="button" onClick={() => setCancelOpen(false)} className="h-8 rounded-md px-2 text-xs text-muted hover:bg-surface-subtle">Keep session</button><button type="button" disabled={cancel.isPending} onClick={() => cancel.mutate()} className="h-8 rounded-md bg-danger px-3 text-xs font-medium text-white disabled:opacity-50">{cancel.isPending ? "Cancelling…" : "Cancel session"}</button></>}
+    >
+      <div className="space-y-3">
+        <p className="text-xs text-muted">Only this scheduled option will be cancelled. Its booked students will be cancelled; other sessions on the same day are unchanged.</p>
+        <ReasonField value={reason} onChange={setReason} label="Reason (optional)" />
+        {cancel.isError ? <p className="text-xs text-danger">{getErrorMessage(cancel.error)}</p> : null}
+      </div>
+    </Modal>
+  </>;
+}
+
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="block text-xs font-medium text-primary"><span className="mb-1 block text-muted">{label}</span><input type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm text-primary outline-none transition focus:border-brand" /></label>;
+}
+
+function ReasonField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="block text-xs font-medium text-primary"><span className="mb-1 block text-muted">{label}</span><textarea value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} rows={3} className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary outline-none transition focus:border-brand" /></label>;
 }

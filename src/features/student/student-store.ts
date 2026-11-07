@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getStudentDetail, listStudents, type StudentRead } from "@/features/student/api";
+import { getCurrentStudent, getStudentForDev, listStudentsForDev, type StudentRead } from "@/features/student/api";
+import { useAuth } from "@/features/auth/auth-context";
+import { isDevAuthBypassEnabled } from "@/features/auth/dev-bypass";
 
 type StudentState = {
   selectedStudentId: string | null;
@@ -19,31 +21,40 @@ export const useStudentStore = create<StudentState>()(
 );
 
 export function useActiveStudent() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { selectedStudentId, setSelectedStudentId } = useStudentStore();
 
-  const listQuery = useQuery({
+  const devListQuery = useQuery({
     queryKey: ["students", "list-active"],
-    queryFn: listStudents,
+    queryFn: listStudentsForDev,
+    enabled: isDevAuthBypassEnabled(),
   });
 
-  const students = listQuery.data?.items ?? [];
+  const students = devListQuery.data?.items ?? [];
 
-  // Determine active student ID (fallback to first active student)
-  const activeStudentSummary =
-    students.find((s) => s.student.id === selectedStudentId) ?? students[0];
-  const activeStudentId = activeStudentSummary?.student.id ?? selectedStudentId ?? null;
+  const authenticatedStudentId = user?.role === "student" ? user.student_id ?? null : null;
+  const activeStudentSummary = isDevAuthBypassEnabled()
+    ? students.find((student) => student.student.id === selectedStudentId) ?? students[0]
+    : undefined;
+  const activeStudentId = authenticatedStudentId ?? activeStudentSummary?.student.id ?? null;
 
-  // Fetch full detail for active student
-  const detailQuery = useQuery({
+  const authenticatedProfileQuery = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: getCurrentStudent,
+    enabled: Boolean(authenticatedStudentId) && !isDevAuthBypassEnabled(),
+  });
+
+  const devProfileQuery = useQuery({
     queryKey: ["student", "detail", activeStudentId],
-    queryFn: () => getStudentDetail(activeStudentId!),
-    enabled: Boolean(activeStudentId),
+    queryFn: () => getStudentForDev(activeStudentId!),
+    enabled: Boolean(activeStudentId) && isDevAuthBypassEnabled(),
   });
 
-  const activeStudent: StudentRead | undefined = detailQuery.data ?? activeStudentSummary;
+  const activeStudent: StudentRead | undefined = authenticatedProfileQuery.data ?? devProfileQuery.data ?? activeStudentSummary;
 
   function switchActiveStudent(studentId: string | null) {
+    if (!isDevAuthBypassEnabled()) return;
     setSelectedStudentId(studentId);
     queryClient.invalidateQueries({ queryKey: ["student"] });
     queryClient.invalidateQueries({ queryKey: ["student-bookings"] });
@@ -54,7 +65,7 @@ export function useActiveStudent() {
     activeStudent,
     activeStudentId,
     setSelectedStudentId: switchActiveStudent,
-    isLoading: listQuery.isLoading || (Boolean(activeStudentId) && detailQuery.isLoading),
-    error: listQuery.error || detailQuery.error,
+    isLoading: devListQuery.isLoading || authenticatedProfileQuery.isLoading || devProfileQuery.isLoading,
+    error: devListQuery.error || authenticatedProfileQuery.error || devProfileQuery.error,
   };
 }

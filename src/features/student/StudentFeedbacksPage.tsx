@@ -14,7 +14,7 @@ export function StudentFeedbacksPage() {
 
   const feedbacksQuery = useQuery({
     queryKey: ["student-feedbacks", studentId],
-    queryFn: () => listStudentFeedbacks(studentId!),
+    queryFn: () => listStudentFeedbacks(),
     enabled: Boolean(studentId),
   });
 

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -28,6 +28,7 @@ const tabOptions: Array<{ value: ClassTab; label: string }> = [
   { value: "upcoming", label: "Upcoming Classes" },
   { value: "past", label: "Past History" },
 ];
+const columnHelper = createColumnHelper<TeacherClassSession>();
 
 export function CapacityProgressBar({ booked, capacity }: { booked: number; capacity: number }) {
   const pct = capacity > 0 ? Math.min(100, Math.round((booked / capacity) * 100)) : 0;
@@ -49,7 +50,6 @@ export function CapacityProgressBar({ booked, capacity }: { booked: number; capa
 }
 
 export function TeacherClassesPage() {
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeTeacherId } = useActiveTeacher();
 
@@ -82,7 +82,6 @@ export function TeacherClassesPage() {
     queryKey: ["teacher", activeTeacherId, "classes", activeTab, programFilter, statusFilter],
     queryFn: () =>
       listTeacherClasses({
-        teacherId: activeTeacherId!,
         programType: programFilter,
         status: statusFilter,
         startsFrom,
@@ -105,8 +104,6 @@ export function TeacherClassesPage() {
     nextParams.delete("session");
     setSearchParams(nextParams);
   }
-
-  const columnHelper = createColumnHelper<TeacherClassSession>();
 
   const columns = useMemo(() => [
     columnHelper.accessor("display_label", {
@@ -161,6 +158,7 @@ export function TeacherClassesPage() {
     }),
   ], []);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table intentionally exposes an imperative table instance.
   const table = useReactTable({
     data: classes,
     columns,
@@ -306,4 +304,3 @@ export function TeacherClassesPage() {
     </section>
   );
 }
-

@@ -238,9 +238,9 @@ export function WeeklyAvailabilityVisualGrid({
                           const startFormatted = new Date(slot.starts_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                           const endFormatted = new Date(slot.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                           const attendeeName =
-                            (slot as any).student_name ||
-                            (slot as any).attendee_name ||
-                            (slot as any).student?.full_name ||
+                            slot.student_name ||
+                            slot.attendee_name ||
+                            slot.student?.full_name ||
                             (slot.status === "booked" ? "Booked Student" : "No Attendee (Available)");
                           const slotTooltip = `Slot: ${slot.status.toUpperCase()}\nTime: ${startFormatted} - ${endFormatted} UTC\nAttendee: ${attendeeName}\nSource: ${slot.source}`;
 
@@ -259,9 +259,9 @@ export function WeeklyAvailabilityVisualGrid({
                             >
                               <span className="block font-semibold capitalize">{slot.status}</span>
                               <span className="text-[10px] opacity-85 block">{startFormatted} - {endFormatted}</span>
-                              {(slot as any).student_name || (slot as any).attendee_name ? (
+                              {slot.student_name || slot.attendee_name ? (
                                 <span className="text-[10px] font-medium truncate block text-primary mt-0.5">
-                                  {(slot as any).student_name || (slot as any).attendee_name}
+                                  {slot.student_name || slot.attendee_name}
                                 </span>
                               ) : null}
                             </div>

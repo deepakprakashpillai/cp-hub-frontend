@@ -69,13 +69,13 @@ export function TeacherAvailabilityPage() {
   // Queries
   const { data: rulesData, isLoading: isRulesLoading } = useQuery({
     queryKey: ["teacher", activeTeacherId, "rules"],
-    queryFn: () => listTeacherRules(activeTeacherId!),
+    queryFn: () => listTeacherRules(),
     enabled: Boolean(activeTeacherId),
   });
 
   const { data: slotsData, isLoading: isSlotsLoading } = useQuery({
     queryKey: ["teacher", activeTeacherId, "slots"],
-    queryFn: () => listTeacherSlots({ teacherId: activeTeacherId! }),
+    queryFn: () => listTeacherSlots({}),
     enabled: Boolean(activeTeacherId),
   });
 
@@ -89,7 +89,6 @@ export function TeacherAvailabilityPage() {
       const startUtc = localRuleToUtc(data.day, data.start);
       const endUtc = localRuleToUtc(data.day, data.end);
       return createTeacherRule({
-        teacher_id: activeTeacherId!,
         day_of_week: startUtc.day,
         start_time_utc: startUtc.time,
         end_time_utc: endUtc.time,
@@ -114,10 +113,10 @@ export function TeacherAvailabilityPage() {
 
   // Requirement 37: Add toast / notification after clicking Generate Slots
   const generateSlotsMutation = useMutation({
-    mutationFn: () => generateTeacherSlots(activeTeacherId!),
+    mutationFn: () => generateTeacherSlots(),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["teacher", activeTeacherId] });
-      const count = (res as any)?.items?.length ?? (res as any)?.created_count;
+      const count = res.slots_created;
       setGenerationNotification({
         type: "success",
         message: count ? `Successfully generated ${count} availability slots for the next 14 days!` : "Successfully generated availability slots for the next 14 days."
@@ -135,7 +134,6 @@ export function TeacherAvailabilityPage() {
   const blockTimeMutation = useMutation({
     mutationFn: async (data: BlockFormValues) => {
       return blockTeacherTime({
-        teacher_id: activeTeacherId!,
         starts_at: new Date(data.start).toISOString(),
         ends_at: new Date(data.end).toISOString(),
         reason: data.reason,
