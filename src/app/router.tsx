@@ -32,6 +32,7 @@ import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/admin/login", element: <LoginPage admin /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/set-password", element: <PasswordActionPage mode="setup" /> },
   { path: "/reset-password", element: <PasswordActionPage mode="reset" /> },
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/admin" replace /> },
+      { index: true, element: <Navigate to="/login" replace /> },
       {
         path: "admin",
         element: (

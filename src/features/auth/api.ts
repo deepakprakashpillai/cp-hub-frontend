@@ -7,6 +7,7 @@ export type AuthUser = {
   email: string;
   full_name: string;
   role: UserRole;
+  roles?: UserRole[];
   teacher_id?: string | null;
   student_id?: string | null;
 };

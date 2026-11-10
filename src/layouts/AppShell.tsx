@@ -124,7 +124,7 @@ export function AppShell() {
               userName={user?.full_name}
               onSignOut={async () => {
                 await signOut();
-                navigate("/login", { replace: true });
+                navigate(isAdminWorkspace ? "/admin/login" : "/login", { replace: true });
               }}
             />
           </aside>
@@ -209,7 +209,7 @@ export function AppShell() {
                 userName={user?.full_name}
                 onSignOut={async () => {
                   await signOut();
-                  navigate("/login", { replace: true });
+                  navigate(isAdminWorkspace ? "/admin/login" : "/login", { replace: true });
                 }}
               />
             </aside>
