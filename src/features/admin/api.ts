@@ -1,3 +1,4 @@
+import axios from "axios";
 import { api } from "@/api/http";
 
 export type AdminDashboardSummary = {
@@ -105,6 +106,7 @@ export type UserRead = {
   email: string;
   phone: string | null;
   role: string;
+  roles?: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -699,6 +701,28 @@ export async function createAdminTeacher(payload: AdminTeacherCreatePayload) {
     profile_photo_url: payload.profilePhotoUrl?.trim() || null,
   });
   return response.data;
+}
+
+export type UserOnboardingLookup = { user: UserRead; teacher_id: string | null };
+
+export async function findUserByEmail(email: string): Promise<UserOnboardingLookup | null> {
+  try {
+    const { data } = await api.get<UserOnboardingLookup>("/admin/users/lookup", { params: { email: email.trim() } });
+    return data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function linkAdminAsTeacher(user: UserRead, payload: AdminTeacherCreatePayload) {
+  const { data } = await api.post<AdminTeacherRead & { profile_already_existed: boolean }>("/admin/teachers/link-existing", {
+    user_id: user.id,
+    display_name: payload.displayName.trim(),
+    bio: payload.bio?.trim() || null,
+    profile_photo_url: payload.profilePhotoUrl?.trim() || null,
+  });
+  return { user: data.user, teacher: data.teacher, alreadyExisted: data.profile_already_existed };
 }
 
 export async function getAdminTeacher(teacherId: string) {

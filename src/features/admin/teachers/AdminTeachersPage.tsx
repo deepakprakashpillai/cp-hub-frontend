@@ -19,12 +19,16 @@ import { AdminCompactToggle as CompactToggle } from "@/features/admin/AdminDetai
 import {
   createAdminTeacher,
   createAdminTeacherAvailabilityRule,
+  findUserByEmail,
+  linkAdminAsTeacher,
   getAdminTeacher,
   listAdminClassSessions,
   listAdminTeachers,
   type AdminTeacherRead,
   type DayOfWeek,
+  type UserOnboardingLookup,
 } from "@/features/admin/api";
+import { useAuth } from "@/features/auth/auth-context";
 import { cn } from "@/lib/utils";
 import {
   formatDate,
@@ -303,14 +307,14 @@ export function AdminTeachersPage() {
         onClose={() => update({ teacher: null }, true)}
         onOpen={() => selectedTeacherId && navigate(`/admin/teachers/${selectedTeacherId}`)}
       />
-      <CreateTeacherModal
+      {step ? <CreateTeacherModal
         step={step}
         onboardingTeacherId={onboardingTeacherId}
         open={Boolean(step)}
         onClose={() => update({ create: null, onboard: null }, true)}
         onStep={(next, id) => update({ create: next, onboard: id ?? onboardingTeacherId })}
         onFinished={(id) => navigate(`/admin/teachers/${id}?tab=availability`)}
-      />
+      /> : null}
     </section>
   );
 }
@@ -568,7 +572,7 @@ function TeacherStatus({ value }: { value: boolean }) {
   return <StatusBadge tone={value ? "green" : "amber"}>{value ? "Active" : "Paused"}</StatusBadge>;
 }
 
-function CreateTeacherModal({
+export function CreateTeacherModal({
   step,
   onboardingTeacherId,
   open,
@@ -584,6 +588,7 @@ function CreateTeacherModal({
   onFinished: (teacherId: string) => void;
 }) {
   const client = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [fullName, setFullName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [displayTouched, setDisplayTouched] = useState(false);
@@ -593,20 +598,28 @@ function CreateTeacherModal({
   const [photo, setPhoto] = useState("");
   const [accountActive, setAccountActive] = useState(true);
   const [rules, setRules] = useState<RuleDraft[]>([]);
+  const [existingAccount, setExistingAccount] = useState<UserOnboardingLookup | null>(null);
+  const payload = {
+    fullName, displayName: displayName || fullName, email, phone, bio,
+    profilePhotoUrl: photo, isAccountActive: accountActive,
+  };
   const createMutation = useMutation({
-    mutationFn: () =>
-      createAdminTeacher({
-        fullName,
-        displayName: displayName || fullName,
-        email,
-        phone,
-        bio,
-        profilePhotoUrl: photo,
-        isAccountActive: accountActive,
-      }),
+    mutationFn: async () => {
+      if (existingAccount) return linkAdminAsTeacher(existingAccount.user, payload);
+      const account = await findUserByEmail(email);
+      if (!account) return { ...(await createAdminTeacher(payload)), alreadyExisted: false };
+      if (!(account.user.roles ?? [account.user.role]).includes("admin")) {
+        throw new Error("This email already belongs to a CP Hub account. Only an existing admin account can be linked here.");
+      }
+      setExistingAccount(account);
+      return null;
+    },
     onSuccess: (teacher) => {
+      if (!teacher) return;
       void client.invalidateQueries({ queryKey: ["admin", "teachers"] });
-      onStep("availability", teacher.teacher.id);
+      if (existingAccount?.user.id === currentUser?.id) void client.invalidateQueries({ queryKey: ["auth", "me"] });
+      if ("alreadyExisted" in teacher && teacher.alreadyExisted) onFinished(teacher.teacher.id);
+      else onStep("availability", teacher.teacher.id);
     },
   });
   const ruleMutation = useMutation({
@@ -651,7 +664,7 @@ function CreateTeacherModal({
     <Modal
       title={step === "availability" ? "Set weekly availability" : "Add teacher"}
       isOpen={open}
-      onClose={onClose}
+      onClose={() => { if (!createMutation.isPending && !ruleMutation.isPending) onClose(); }}
       size="md"
       footer={
         step === "availability" ? (
@@ -688,7 +701,7 @@ function CreateTeacherModal({
               onClick={() => createMutation.mutate()}
               className="h-7 rounded-md px-2 text-xs font-medium text-brand transition hover:bg-surface-subtle disabled:opacity-50"
             >
-              {createMutation.isPending ? "Creating…" : "Continue"}
+              {createMutation.isPending ? "Saving…" : existingAccount ? (existingAccount.teacher_id ? "Confirm and open teacher" : "Confirm and continue") : "Continue"}
             </button>
           </>
         )
@@ -700,7 +713,7 @@ function CreateTeacherModal({
           <CreateTeacherStep label="Availability" active={step === "availability"} />
         </div>
         {step === "profile" ? (
-          <div className="space-y-3">
+          <fieldset disabled={createMutation.isPending} className="space-y-3 disabled:opacity-60">
             <div className="grid gap-2 sm:grid-cols-2">
               <Field
                 label="Full name"
@@ -720,9 +733,16 @@ function CreateTeacherModal({
               />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Field label="Email" value={email} type="email" onChange={setEmail} />
+              <Field label="Email" value={email} type="email" onChange={(value) => { setEmail(value); setExistingAccount(null); createMutation.reset(); }} />
               <Field label="Phone" value={phone} onChange={setPhone} placeholder="Optional" />
             </div>
+            {existingAccount ? (
+              <div className="rounded-md border border-border bg-surface-subtle p-3 text-xs leading-5 text-primary" role="status">
+                <p className="font-medium">{existingAccount.user.id === currentUser?.id ? "This is your admin account." : "This email belongs to an existing admin account."}</p>
+                <p className="mt-1 text-muted">{existingAccount.teacher_id ? "A teacher profile already exists. Confirm to keep admin access, enable teacher access, and open the existing profile. The details entered here will not replace it." : "Confirm to add a teacher profile to this account. The existing account details, password, and admin access will stay the same; only teacher profile details will be used."}</p>
+                {!existingAccount.user.is_active ? <p className="mt-1 text-danger">This account is disabled and will remain disabled.</p> : null}
+              </div>
+            ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
               <Field
                 label="Profile photo URL"
@@ -748,7 +768,7 @@ function CreateTeacherModal({
             {createMutation.error ? (
               <p className="text-xs text-danger">{getErrorMessage(createMutation.error)}</p>
             ) : null}
-          </div>
+          </fieldset>
         ) : (
           <div className="space-y-2.5">
             <p className="text-xs text-muted">
